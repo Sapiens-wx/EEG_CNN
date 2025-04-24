@@ -1,0 +1,4 @@
+*.keras
+*.csv
+/training_data/preprocessed/
+*__pycache__/
