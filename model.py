@@ -32,6 +32,6 @@ def CreateModel():
         layers.Dropout(0.5),
         layers.Dense(1, activation='sigmoid'),
     ])
-    model.compile(optimizer='adam',loss='categorical_crossentropy',
+    model.compile(optimizer='adam',loss='binary_crossentropy',
                   metrics=['accuracy'])
     return model

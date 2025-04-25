@@ -1,5 +1,5 @@
 import numpy as np
-import torch, os
+import os
 from pylsl import StreamInlet, resolve_streams, resolve_bypred  # For real-time EEG data streaming
 from pynput.keyboard import Controller, Key  # For simulating keyboard button presses
 import time; #use the sleep method
@@ -11,8 +11,11 @@ def EvaluateData(data):
     returns:
         prediction: (class(0 or 1), possibilities)
     """
-    prediction=model.predict(processed_data);
-    return (prediction>0.5?1:0,[1-prediction,prediction])
+    data=data.reshape((1,data.shape[0],data.shape[1]))
+    prediction=cnn.predict(data, verbose=0); # verbose=0 disables output
+    if prediction>0.5:
+        return (1,[1-prediction,prediction])
+    return (0,[1-prediction,prediction])
 
 # load model
 cnn=model.LoadModel("model.keras")
