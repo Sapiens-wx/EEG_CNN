@@ -5,6 +5,8 @@ from pynput.keyboard import Controller, Key  # For simulating keyboard button pr
 import time; #use the sleep method
 from preprocess_eeg import preprocess_data; # For data preprocessing
 import model; # load model
+import communication; # communication with Unity game
+import config; # get ip_address and port
 
 def EvaluateData(data):
     """
@@ -13,9 +15,13 @@ def EvaluateData(data):
     """
     data=data.reshape((1,data.shape[0],data.shape[1]))
     prediction=cnn.predict(data, verbose=0); # verbose=0 disables output
-    if prediction>0.5:
-        return (1,[1-prediction,prediction])
-    return (0,[1-prediction,prediction])
+    if prediction[0]>0.5:
+        return (1,[1-prediction[0],prediction[0]])
+    return (0,[1-prediction[0],prediction[0]])
+
+# callback for receiving label from the game. gets one byte: the user is thinking of left/right/neither 0/1/2
+def OnReceiveLabelFromGame(data):
+    curLabel=int.from_bytes(data[0],'big');
 
 # load model
 cnn=model.LoadModel("model.keras")
@@ -54,11 +60,16 @@ lastKey=Key.left;
 predictInterval=0.5;
 programStartTime=time.time();
 
+# is the user currently thinking left/right? left: 0, right: 1, neither(rest state): 2
+# used for the meteorite game
+curLabel=2;
+communication.connect_async(config.ip_address, config.port, OnReceiveLabelFromGame);
+
 try:
     while True:
         # record start time
         startTime=time.time();
-        print(f"time={startTime-programStartTime}");
+        print(f"time={startTime-programStartTime}, curLabel={curLabel}");
         # Get a new EEG sample
         samples, _ = inlet.pull_chunk()  # Retrieve EEG samples from the stream
         if samples:
