@@ -1,3 +1,9 @@
+##latest steps
+1. record_eeg.py: record EEG data for training model
+2. preprocess_eeg.py: noise removal
+3. train.py: train the model using the preprocessed data
+4. predict_eeg.py: predict EEG signals in real time
+
 # eeg_racing_game
 Note: Only compatiable with Windows OS currently
 
@@ -92,7 +98,7 @@ Train the EEG Transformer model using the train_eeg_transformer.py script.
 Ensure the .npy files (eeg_segments.npy and eeg_labels.npy) are in the specified folder.\
 Update the paths in the script if necessary\
 Run the script:\
-```python trainmodel.py```
+```python train.py```
 
 The script will:\
 Train the model for 5 epochs (adjust epochs in the script if needed, the more the better!!).\
