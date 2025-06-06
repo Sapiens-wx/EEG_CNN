@@ -33,7 +33,7 @@ if __name__ == "__main__":
     print("GPU Available:", tf.config.list_physical_devices('GPU'))
     # train model
     history=cnn.fit(x_train, y_train,
-                    epochs=100,
+                    epochs=30,
                     batch_size=32,
                     validation_data=(x_test, y_test)
     )
@@ -41,3 +41,4 @@ if __name__ == "__main__":
     loss, accuracy=cnn.evaluate(x_test, y_test)
     print(f"loss={loss}, accuracy={accuracy}")
     cnn.save(model_name)
+    input("press enter to exit ...")

@@ -15,13 +15,22 @@ def EvaluateData(data):
     """
     data=data.reshape((1,data.shape[0],data.shape[1]))
     prediction=cnn.predict(data, verbose=0); # verbose=0 disables output
-    if prediction[0]>0.5:
-        return (1,[1-prediction[0],prediction[0]])
-    return (0,[1-prediction[0],prediction[0]])
+    if prediction[0][0]>0.5:
+        return (1,[1-prediction[0][0],prediction[0][0]])
+    return (0,[1-prediction[0][0],prediction[0][0]])
+
+def TrainUsingData(data, label):
+    """
+    data: dimension should be 2. shape=(256,5). will convert to shape (1,256,5)
+    label: 0 or 1. will convert to shape(1,)
+    """
+    cnn.train_on_batch(data.reshape((1,data.shape[0],data.shape[1],1)), np.array([[label]]))
+    print("trained data")
 
 # callback for receiving label from the game. gets one byte: the user is thinking of left/right/neither 0/1/2
 def OnReceiveLabelFromGame(data):
-    curLabel=int.from_bytes(data[0],'big');
+    global curLabel;
+    curLabel=int(data[0]);
 
 # load model
 cnn=model.LoadModel("model.keras")
@@ -103,6 +112,10 @@ try:
                 keyboard.release(lastKey); # release the last pressed key
                 lastKey=Key.right;
                 keyboard.press(Key.right);
+
+            # train the model using the given sequence
+            if(curLabel!=2):
+                TrainUsingData(sequence, curLabel);
 
             #print(f"Predicted Action: {action}")
         timeElapsed=time.time()-startTime;

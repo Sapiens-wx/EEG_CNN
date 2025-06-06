@@ -1,6 +1,7 @@
 import socket
 import threading
 import time
+import config
 
 # this is the function that should be called by outside scripts
 # this will be called to asynchronously create a connection and receive data from the client.
@@ -34,9 +35,9 @@ def handle_client(conn, addr, onDataReceived):
         conn.close();
 
 def m_cb(data):
-    print(f"received data: {data}")
+    print(f"received data: {int(data[0])}")
 
-if __name__ == "__main":
-    connect_async("192.168.3.205", 5000, m_cb);
+if __name__ == "__main__":
+    connect_async(config.ip_address, config.port, m_cb);
     while True:
-        time.sleep(3000);
+        time.sleep(1);
