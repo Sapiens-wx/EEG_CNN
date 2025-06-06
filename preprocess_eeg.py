@@ -79,6 +79,8 @@ if __name__ == "__main__":
                 label=0; # Assign label 0 for "left"
             elif "right" in file.lower():
                 label=1; # Assign label 1 for "right"
+            elif "rest" in file.lower():
+                label=2; # Assign label 2 for "rest"
             else:
                 print(f"Warning: No label assigned for file {file}. Skipping...");
                 continue;

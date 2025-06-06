@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
     # Step 2: Specify recording duration and label
     duration = 60  # Duration in seconds (Adjustable: change to desired recording length)
-    label = input("Enter the label for this recording (e.g., left, right): ")
+    label = input("Enter the label for this recording (e.g., left, right, rest): ")
 
     # Step 3: Record EEG data
     filename=record_eeg_data(duration, label)

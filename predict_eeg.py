@@ -14,12 +14,12 @@ def EvaluateData(data):
         prediction: (class(0 or 1), possibilities)
     """
     data=data.reshape((1,data.shape[0],data.shape[1]))
-    prediction=cnn.predict(data, verbose=0); # verbose=0 disables output
-    if prediction[0]>0.5:
-        return (1,[1-prediction[0],prediction[0]])
-    return (0,[1-prediction[0],prediction[0]])
+    prediction=cnn.predict(data, verbose=0)[0]; # verbose=0 disables output
+    predicted_class=np.argmax(prediction);
+    return (predicted_class, prediction);
 
-# callback for receiving label from the game. gets one byte: the user is thinking of left/right/neither 0/1/2
+# callback for receiving label from the game. gets one byte: the user is thinking of left/right/neither 0/1/2.
+# !!! not updated since predicting three classes (left,right,rest)
 def OnReceiveLabelFromGame(data):
     curLabel=int.from_bytes(data[0],'big');
 
@@ -96,13 +96,19 @@ try:
 
             # Simulate key presses based on prediction
             if predict_class == 0:  # Class 0 corresponds to "Left"
-                keyboard.release(lastKey); # release the last pressed key
+                if lastKey is not None:
+                    keyboard.release(lastKey); # release the last pressed key
                 lastKey=Key.left;
                 keyboard.press(Key.left);
-            else:  # Class 1 corresponds to "Right"
-                keyboard.release(lastKey); # release the last pressed key
+            elif predict_class == 1: # Class 1 corresponds to "Right"
+                if lastKey is not None:
+                    keyboard.release(lastKey); # release the last pressed key
                 lastKey=Key.right;
                 keyboard.press(Key.right);
+            else: #Class 2 corresponds to "Rest"
+                if lastKey is not None:
+                    keyboard.release(lastKey);
+                lastKey=None;
 
             #print(f"Predicted Action: {action}")
         timeElapsed=time.time()-startTime;

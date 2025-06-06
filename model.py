@@ -30,7 +30,7 @@ def CreateModel():
 
         layers.Dense(16, activation='relu'),
         layers.Dropout(0.5),
-        layers.Dense(1, activation='sigmoid'),
+        layers.Dense(3, activation='softmax'),
     ])
     model.compile(optimizer='adam',loss='binary_crossentropy',
                   metrics=['accuracy'])
