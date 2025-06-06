@@ -18,10 +18,19 @@ def EvaluateData(data):
     predicted_class=np.argmax(prediction);
     return (predicted_class, prediction);
 
+def TrainUsingData(data, label):
+    """
+    data: dimension should be 2. shape=(256,5). will convert to shape (1,256,5)
+    label: 0 or 1. will convert to shape(1,)
+    """
+    cnn.train_on_batch(data.reshape((1,data.shape[0],data.shape[1],1)), np.array([[label]]))
+    print("trained data")
+
 # callback for receiving label from the game. gets one byte: the user is thinking of left/right/neither 0/1/2.
 # !!! not updated since predicting three classes (left,right,rest)
 def OnReceiveLabelFromGame(data):
-    curLabel=int.from_bytes(data[0],'big');
+    global curLabel;
+    curLabel=int(data[0]);
 
 # load model
 cnn=model.LoadModel("model.keras")
@@ -109,6 +118,10 @@ try:
                 if lastKey is not None:
                     keyboard.release(lastKey);
                 lastKey=None;
+
+            # train the model using the given sequence
+            # if(curLabel!=2):
+            #    TrainUsingData(sequence, curLabel);
 
             #print(f"Predicted Action: {action}")
         timeElapsed=time.time()-startTime;
