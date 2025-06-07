@@ -1,6 +1,7 @@
 ## Table of Contents
 1. [Usage](#usage)
-2. [SUS score calculation](#step-2-testing-the-muse-meditation-app)
+2. [GEQ](#game-experience-questionnaire-geq)
+3. [SUS](#system-usability-scale-sus)
 
 ## Usage
 1. __record_eeg.py:__ record EEG data for training model
@@ -11,7 +12,14 @@
    <br>The preprocessed data should be saved as ```EEG_CNN/training_data/preprocessed/eeg_labels.py``` and ```EEG_CNN/training_data/preprocessed/eeg_segments.py``` (automatically saved to this location)
 5. __predict_eeg.py__: predict EEG signals in real time using ```model.keras```.
 
-## SUS Score Calculation
+## Game Experience Questionnaire (GEQ)
+[Download](https://pure.tue.nl/ws/files/21666907/Game_Experience_Questionnaire_English.pdf)
+
+Use the core module of the questionnaire is enough. Other parts are for multiplayer and voluntary playing
+
+## System Usability Scale (SUS)
+
+[Download](https://digital.ahrq.gov/sites/default/files/docs/survey/systemusabilityscale%2528sus%2529_comp%255B1%255D.pdf)
 
 You need the **10 responses** from a participant. Each response is a score from **1 to 5**.
 
