@@ -1,4 +1,8 @@
-## latest steps
+## Table of Contents
+1. [Usage](#usage)
+2. [SUS score calculation](#step-2-testing-the-muse-meditation-app)
+
+## Usage
 1. __record_eeg.py:__ record EEG data for training model
 2. __preprocess_eeg.py:__ noise removal.
    <br>Recorded data has to be in ```traing_data/``` in order to be preprocessed (automatically saved to this location).
@@ -6,6 +10,28 @@
 4. __train.py:__ train the model using the preprocessed data.
    <br>The preprocessed data should be saved as ```EEG_CNN/training_data/preprocessed/eeg_labels.py``` and ```EEG_CNN/training_data/preprocessed/eeg_segments.py``` (automatically saved to this location)
 5. __predict_eeg.py__: predict EEG signals in real time using ```model.keras```.
+
+## SUS Score Calculation
+
+You need the **10 responses** from a participant. Each response is a score from **1 to 5**.
+
+### 🔢 Step 1: Adjust Each Item Score
+
+- **Odd-numbered items** (1, 3, 5, 7, 9):  
+  `Adjusted = Score - 1`
+
+- **Even-numbered items** (2, 4, 6, 8, 10):  
+  `Adjusted = 5 - Score`
+
+### 📊 Step 2: Sum All Adjusted Scores
+
+Add the 10 adjusted values. The total will be between **0 and 40**.
+
+### ✖️ Step 3: Multiply by 2.5
+
+```text
+SUS = (Sum of Adjusted Scores) × 2.5
+```
 
 # eeg_racing_game
 Note: Only compatiable with Windows OS currently
