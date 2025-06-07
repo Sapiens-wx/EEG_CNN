@@ -1,8 +1,11 @@
-##latest steps
-1. record_eeg.py: record EEG data for training model
-2. preprocess_eeg.py: noise removal
-3. train.py: train the model using the preprocessed data
-4. predict_eeg.py: predict EEG signals in real time
+## latest steps
+1. __record_eeg.py:__ record EEG data for training model
+2. __preprocess_eeg.py:__ noise removal.
+   <br>Recorded data has to be in ```traing_data/``` in order to be preprocessed (automatically saved to this location).
+   <br>All the .csv file in this folder will be processed.
+4. __train.py:__ train the model using the preprocessed data.
+   <br>The preprocessed data should be saved as ```EEG_CNN/training_data/preprocessed/eeg_labels.py``` and ```EEG_CNN/training_data/preprocessed/eeg_segments.py``` (automatically saved to this location)
+5. __predict_eeg.py__: predict EEG signals in real time using ```model.keras```.
 
 # eeg_racing_game
 Note: Only compatiable with Windows OS currently
