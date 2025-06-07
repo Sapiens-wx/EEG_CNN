@@ -89,7 +89,10 @@ if __name__ == "__main__":
             # Segment data
             segments = segment_data(df, window_size, step_size)
             total_segments.extend(segments);
-            total_labels.extend([label]*segments.shape[0])
+            labels=[0,0,0]; # output shape: (3,). initialize output
+            labels[label]=1; # label the correct class with value 1
+            for _ in range(segments.shape[0]):
+                total_labels.append(labels);
     # Save preprocessed data
     total_segments=np.array(total_segments);
     total_labels=np.array(total_labels);
