@@ -14,18 +14,18 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # Use GPU
 
 # Initialize the model
 input_dim = 5  # Number of input features (e.g., EEG channels)
-num_labels = 2  # Number of output classes (e.g., Left and Right)
+num_labels = 3  # Number of output classes (Left, Right, and Rest)
 model = EEGTransformer(input_dim=input_dim, num_labels=num_labels)
 
 # Load pretrained model checkpoint
-checkpoint_path = os.path.join("eeg_transformer_model") # CHANGE THIS PATH
-checkpoint = torch.load(checkpoint_path, map_location=device)
-
-# Load and filter the model state dictionary to match current model architecture
-#model_state_dict = model.state_dict()
-#filtered_state_dict = {k: v for k, v in checkpoint.items() if k in model_state_dict and model_state_dict[k].shape == v.shape}
-#model_state_dict.update(filtered_state_dict)
-model.load_state_dict(checkpoint)
+try:
+    checkpoint_path = "model.keras"  # 更新为正确的模型文件路径
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    model.load_state_dict(checkpoint)
+    print("Model loaded successfully")
+except Exception as e:
+    print(f"Error loading model: {e}")
+    print("Training a new model...")
 
 # Prepare the model for evaluation
 model.to(device)
@@ -86,17 +86,20 @@ try:
             # Log predictions for debugging
             #print(f"Raw outputs: {outputs}")
             #print(f"Probabilities: {probabilities}")
-            print(f"Predicted class: {prediction}")
-
-            # Simulate key presses based on prediction
+            print(f"Predicted class: {prediction}")            # Simulate key presses based on prediction
+            keyboard.release(lastKey)  # release the last pressed key
+            
             if prediction == 0:  # Class 0 corresponds to "Left"
-                keyboard.release(lastKey); # release the last pressed key
-                lastKey=Key.left;
-                keyboard.press(Key.left);
-            else:  # Class 1 corresponds to "Right"
-                keyboard.release(lastKey); # release the last pressed key
-                lastKey=Key.right;
-                keyboard.press(Key.right);
+                lastKey = Key.left
+                keyboard.press(Key.left)
+                print("Action: Left")
+            elif prediction == 1:  # Class 1 corresponds to "Right"
+                lastKey = Key.right
+                keyboard.press(Key.right)
+                print("Action: Right")
+            else:  # Class 2 corresponds to "Rest"
+                lastKey = None
+                print("Action: Rest")
 
             #print(f"Predicted Action: {action}")
             time.sleep(0.003);

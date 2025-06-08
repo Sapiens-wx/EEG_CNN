@@ -61,7 +61,7 @@ if __name__ == "__main__":
     #start_stream()  # Run this only if the Muse device is not already streaming
 
     # Step 2: Specify recording duration and label
-    duration = 60  # Duration in seconds (Adjustable: change to desired recording length)
+    duration = 20  # Duration in seconds (Adjustable: change to desired recording length)
     label = input("Enter the label for this recording (e.g., left, right, rest): ")
 
     # Step 3: Record EEG data

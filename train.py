@@ -33,7 +33,7 @@ if __name__ == "__main__":
     print("GPU Available:", tf.config.list_physical_devices('GPU'))
     # train model
     history=cnn.fit(x_train, y_train,
-                    epochs=30,
+                    epochs= 300,
                     batch_size=32,
                     validation_data=(x_test, y_test)
     )
