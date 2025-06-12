@@ -2,6 +2,7 @@
 1. [Usage](#usage)
 2. [GEQ](#game-experience-questionnaire-geq)
 3. [SUS](#system-usability-scale-sus)
+4. [Instructions](#Instructions)
 
 ## Usage
 1. __record_eeg.py:__ record EEG data for training model
@@ -154,4 +155,87 @@ The script will:\
 Read real-time EEG data and normalize it.\
 Predict actions ("Left" or "Right") based on EEG signals.\
 Simulate arrow key presses to control Tux Racer.
+
+## Instructions
+
+### Command Line Usage Guide for All Scripts
+
+#### 1. record_eeg.py
+Record EEG data for training. Supports 9 labels.
+
+**Arguments:**
+- `-lable <label>`: Specify the label (choose from: left, right, neutral, left to right, right to left, left to neutral, right to neutral, neutral to left, neutral to right). If not provided, you will be prompted.
+- `-t <duration>`: Recording duration in seconds. If not provided, you will be prompted.
+- `-enableProgress`: Show a progress bar during recording.
+
+**Example:**
+```
+python record_eeg.py -lable left -t 10 -enableProgress
+```
+
+---
+
+#### 2. preprocess_eeg.py
+Preprocess all EEG .csv files in `training_data/`. No arguments needed.
+
+**Example:**
+```
+python preprocess_eeg.py
+```
+
+---
+
+#### 3. train.py
+Train the model using preprocessed data. No arguments needed.
+
+**Example:**
+```
+python train.py
+```
+
+---
+
+#### 4. evaluate_training_data.py
+Evaluate model performance on training data.
+
+**Arguments:**
+- `-j <int>`: Number of parallel processes (default: 1)
+- `-testCount <int>`: Number of test repetitions per sample (default: 5)
+- `-windowTime <int>`: Window size in milliseconds (default: 500)
+- `-categories <label1> <label2> ...`: Only evaluate specified categories (e.g., left right neutral)
+
+**Example:**
+```
+python evaluate_training_data.py -j 4 -testCount 10 -windowTime 500 -categories left right neutral
+```
+
+---
+
+#### 5. predict_eeg.py
+Real-time EEG prediction. No arguments needed.
+
+**Example:**
+```
+python predict_eeg.py
+```
+
+---
+
+#### 6. predict_eeg_judge_with_keyboard.py
+Real-time prediction with manual labeling or transition test.
+
+**Arguments:**
+- `--transitionTest`: Enable transition test mode (see instructions printed at startup). If not provided, runs in manual labeling mode.
+
+**Example:**
+```
+python predict_eeg_judge_with_keyboard.py --transitionTest
+```
+
+---
+
+#### 7. General Notes
+- All scripts must be run from the project root or the correct subfolder as described above.
+- For label arguments, always use one of the 9 supported labels exactly as listed.
+- For more details, see the comments at the top of each script.
 
