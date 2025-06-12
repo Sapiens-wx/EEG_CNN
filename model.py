@@ -11,27 +11,26 @@ def LoadModel(path):
     return model;
 
 def CreateModel():
-    model=models.Sequential([
-        # input shape: 256, 5 channels
-        # CNN
-        layers.Conv1D(filters=16, kernel_size=5, strides=1, padding='same'),
-        layers.BatchNormalization(),
-        layers.Activation('relu'),
-        layers.MaxPooling1D(pool_size=2),
-
-        layers.Conv1D(filters=32, kernel_size=3, strides=1, padding='same'),
-        layers.BatchNormalization(),
-        layers.Activation('relu'),
-        layers.MaxPooling1D(pool_size=2),
-        # LSTM
-        #layers.Reshape((64,32)),
-        layers.LSTM(64, return_sequences=True),
-        layers.LSTM(32),
-
-        layers.Dense(16, activation='relu'),
-        layers.Dropout(0.5),
-        layers.Dense(3, activation='softmax'),
-    ])
-    model.compile(optimizer='adam',loss='binary_crossentropy',
-                  metrics=['accuracy'])
+    # 假设输入 shape: (256, 4) 或 (256, 5)，如有不同请调整
+    input_shape = (256, 4)
+    inputs = layers.Input(shape=input_shape)
+    # 线性投影到d_model
+    x = layers.Dense(64)(inputs)
+    # Transformer Encoder Block
+    for _ in range(2):
+        # Multi-head Self Attention
+        attn_output = layers.MultiHeadAttention(num_heads=4, key_dim=64)(x, x)
+        x = layers.Add()([x, attn_output])
+        x = layers.LayerNormalization()(x)
+        # Feed Forward
+        ff = layers.Dense(128, activation='relu')(x)
+        ff = layers.Dense(64)(ff)
+        x = layers.Add()([x, ff])
+        x = layers.LayerNormalization()(x)
+    x = layers.GlobalAveragePooling1D()(x)
+    x = layers.Dense(32, activation='relu')(x)
+    x = layers.Dropout(0.5)(x)
+    outputs = layers.Dense(9, activation='softmax')(x)  # 9类输出
+    model = models.Model(inputs, outputs)
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     return model

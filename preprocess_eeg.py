@@ -58,45 +58,56 @@ def preprocess_data(data, lowcut=1, highcut=50, fs=256):
     # Normalize each channel (z-score normalization)
     normalized_data = (filtered_data - np.mean(filtered_data, axis=0)) / np.std(filtered_data, axis=0)
 
-    return normalized_data;
+    return normalized_data
+
+# 9-category definitions (统一label名称和顺序)
+CATEGORY_NAMES = [
+    "left", "right", "neutral",
+    "left to right", "right to left",
+    "left to neutral", "right to neutral",
+    "neutral to left", "neutral to right"
+]
+CATEGORY_NAME_TO_IDX = {name: idx for idx, name in enumerate(CATEGORY_NAMES)}
+CATEGORY_IDX_TO_NAME = {idx: name for idx, name in enumerate(CATEGORY_NAMES)}
+
+def extract_label_from_filename(filename):
+    lower = filename.lower().replace('-', ' ').replace('_', ' ')
+    for name in CATEGORY_NAMES:
+        name_key = name.lower().replace('-', ' ').replace('_', ' ')
+        if name_key in lower:
+            return CATEGORY_NAME_TO_IDX[name]
+    # fallback: try partial match
+    for name in CATEGORY_NAMES:
+        if name.split()[0] in lower:
+            return CATEGORY_NAME_TO_IDX[name]
+    return -1
 
 # Run the preprocessing script
 if __name__ == "__main__":
-    window_size=256;
-    step_size=128;
-    # init segments (which will be saved to numpy file)
-    total_segments=[];
-    total_labels=[];
-    # loop through each file in the folder
-    data_folder=os.path.join("training_data");
+    window_size = 256
+    step_size = 128
+    total_segments = []
+    total_labels = []
+    data_folder = os.path.join("training_data")
     for file in os.listdir(data_folder):
-        if file.endswith(".csv"): # process only CSV files
-            df=pd.read_csv(os.path.join(data_folder, file));
-            df = df.drop(columns=['timestamps']).values  # Extract EEG channels (all columns except 'Label')
-            label=0;
-            # extract label from the filename and assign it to a new column
-            if "left" in file.lower():
-                label=0; # Assign label 0 for "left"
-            elif "right" in file.lower():
-                label=1; # Assign label 1 for "right"
-            elif "rest" in file.lower():
-                label=2; # Assign label 2 for "rest"
-            else:
-                print(f"Warning: No label assigned for file {file}. Skipping...");
-                continue;
-            # preprocess data
-            df=preprocess_data(df);
-            # Segment data
+        if file.endswith(".csv"):
+            df = pd.read_csv(os.path.join(data_folder, file))
+            df = df.drop(columns=['timestamps']).values
+            label = extract_label_from_filename(file)
+            if label == -1:
+                print(f"Warning: No label assigned for file {file}. Skipping...")
+                continue
+            df = preprocess_data(df)
             segments = segment_data(df, window_size, step_size)
-            total_segments.extend(segments);
-            labels=[0,0,0]; # output shape: (3,). initialize output
-            labels[label]=1; # label the correct class with value 1
+            total_segments.extend(segments)
+            labels = [0] * len(CATEGORY_NAMES)
+            labels[label] = 1
             for _ in range(segments.shape[0]):
-                total_labels.append(labels);
-    # Save preprocessed data
-    total_segments=np.array(total_segments);
-    total_labels=np.array(total_labels);
-    print(f"segment shape {total_segments.shape}, label shape {total_labels.shape}");
-    save_folder = os.path.join("training_data\preprocessed") # CHANGE THIS path to your output folder
-    np.save(os.path.join(save_folder, "eeg_segments.npy"), np.array(total_segments))
-    np.save(os.path.join(save_folder, "eeg_labels.npy"), np.array(total_labels))
+                total_labels.append(labels)
+    total_segments = np.array(total_segments)
+    total_labels = np.array(total_labels)
+    print(f"segment shape {total_segments.shape}, label shape {total_labels.shape}")
+    save_folder = os.path.join("training_data", "preprocessed")
+    os.makedirs(save_folder, exist_ok=True)
+    np.save(os.path.join(save_folder, "eeg_segments.npy"), total_segments)
+    np.save(os.path.join(save_folder, "eeg_labels.npy"), total_labels)

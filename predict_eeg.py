@@ -8,13 +8,21 @@ import model; # load model
 import communication; # communication with Unity game
 import config; # get ip_address and port
 
+# 9-category definitions
+CATEGORY_NAMES = [
+    "left", "right", "rest",
+    "left to right", "right to left", "right to rest",
+    "left to rest", "rest to left", "rest to right"
+]
+CATEGORY_IDX_TO_NAME = {idx: name for idx, name in enumerate(CATEGORY_NAMES)}
+
 def EvaluateData(data):
     """
     returns:
-        prediction: (class(0 or 1), possibilities)
+        prediction: (class_idx, possibilities)
     """
     data=data.reshape((1,data.shape[0],data.shape[1]))
-    prediction=cnn.predict(data, verbose=0)[0]; # verbose=0 disables output
+    prediction=cnn.predict(data, verbose=0)[0];
     predicted_class=np.argmax(prediction);
     return (predicted_class, prediction);
 
@@ -95,29 +103,38 @@ try:
 
             prediction = EvaluateData(sequence)  # Forward pass through the model
             probabilities = prediction[1]  # Compute probabilities
-            predict_class=prediction[0] # class (left or right)
-                
-            # Log predictions for debugging
-            #print(f"Raw outputs: {outputs}")
-            #print(f"Probabilities: {probabilities}")
-            print(f"Predicted class: {predict_class}")
+            predict_class=prediction[0] # class index
+            predict_name = CATEGORY_IDX_TO_NAME.get(predict_class, str(predict_class))
+            print(f"Predicted class: {predict_class} ({predict_name})")
             print(f"Class Probabilities: {probabilities}")
 
-            # Simulate key presses based on prediction
-            if predict_class == 0:  # Class 0 corresponds to "Left"
+            # Simulate key presses based on prediction (9类label归类)
+            left_classes = [0, 4, 7]   # left, right to left, neutral to left
+            right_classes = [1, 3, 8]  # right, left to right, neutral to right
+            neutral_classes = [2, 5, 6]  # neutral, left to neutral, right to neutral
+
+            if predict_class in left_classes:
+                if lastKey != Key.left:
+                    if lastKey is not None:
+                        keyboard.release(lastKey)
+                    lastKey = Key.left
+                    keyboard.press(Key.left)
+            elif predict_class in right_classes:
+                if lastKey != Key.right:
+                    if lastKey is not None:
+                        keyboard.release(lastKey)
+                    lastKey = Key.right
+                    keyboard.press(Key.right)
+            elif predict_class in neutral_classes:
                 if lastKey is not None:
-                    keyboard.release(lastKey); # release the last pressed key
-                lastKey=Key.left;
-                keyboard.press(Key.left);
-            elif predict_class == 1: # Class 1 corresponds to "Right"
+                    keyboard.release(lastKey)
+                lastKey = None
+            else:
+                # 其它类别只打印类别
                 if lastKey is not None:
-                    keyboard.release(lastKey); # release the last pressed key
-                lastKey=Key.right;
-                keyboard.press(Key.right);
-            else: #Class 2 corresponds to "Rest"
-                if lastKey is not None:
-                    keyboard.release(lastKey);
-                lastKey=None;
+                    keyboard.release(lastKey)
+                lastKey = None
+                print(f"Action: {predict_name}")
 
             # train the model using the given sequence
             # if(curLabel!=2):

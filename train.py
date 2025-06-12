@@ -20,6 +20,10 @@ print(f"y_train shape: {y_train.shape}")
 print(f"X_test shape: {x_test.shape}")
 print(f"y_test shape: {y_test.shape}")
 
+# 检查标签shape是否为9类one-hot
+if y_train.shape[-1] != 9:
+    raise ValueError(f"y_train shape[-1]={y_train.shape[-1]}, 但应为9（9类one-hot标签）。请检查预处理脚本和数据！")
+
 # Initialize CNN model
 model_name="model.keras";
 cnn = model.LoadModel(model_name);
