@@ -29,11 +29,9 @@ CATEGORY_IDX_TO_NAME = {idx: name for idx, name in enumerate(CATEGORY_NAMES)}
 def extract_label_from_filename(filename):
     lower = filename.lower().replace('-', ' ').replace('_', ' ')
     for name in CATEGORY_NAMES:
-        # 允许下划线、空格、连字符等任意分隔
         name_key = name.lower().replace('-', ' ').replace('_', ' ')
         if name_key in lower:
             return CATEGORY_NAME_TO_IDX[name]
-    # fallback: try partial match
     for name in CATEGORY_NAMES:
         if name.split()[0] in lower:
             return CATEGORY_NAME_TO_IDX[name]
@@ -185,10 +183,10 @@ def predict_file_with_path_count_worker(file_path, window_size, test_count, idx,
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-j", "--jobs", type=int, default=1, help="并发进程数")
-    parser.add_argument("-testCount", type=int, default=5, help="每个样本的测试次数")
-    parser.add_argument("-windowTime", type=int, default=500, help="窗口时间长度（毫秒）")
-    parser.add_argument("-categories", nargs="*", default=None, help="只评估指定类别（如 left right rest ...）")
+    parser.add_argument("-j", "--jobs", type=int, default=1, help="Number of parallel processes")
+    parser.add_argument("-testCount", type=int, default=5, help="Number of test repetitions per sample")
+    parser.add_argument("-windowTime", type=int, default=500, help="Window size in milliseconds")
+    parser.add_argument("-categories", nargs="*", default=None, help="Only evaluate specified categories (e.g. left right neutral ...)")
     args = parser.parse_args()
 
     if args.categories:

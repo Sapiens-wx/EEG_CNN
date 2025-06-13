@@ -234,7 +234,24 @@ python predict_eeg_judge_with_keyboard.py --transitionTest
 
 ---
 
-#### 7. General Notes
+#### 7. train_switch_model.py
+Train a model with selectable architecture (CNN, Transformer, or CNN+LSTM).
+
+**Arguments:**
+- `-model <type>`: Specify the model type. Options: `CNN`, `Transformer`, `CNN+LSTM` (case-insensitive, spaces allowed, e.g. `-model "CNN+LSTM"`).
+- `--epoch`, `-epoch`, `-epochs <int>`: Number of training epochs (default: 100).
+- `-printResult`: Print model summary after training.
+
+**Example:**
+```
+python train_switch_model.py -model CNN -epochs 200 -printResult
+python train_switch_model.py -model "CNN+LSTM" -epoch 150
+python train_switch_model.py -model transformer
+```
+
+---
+
+#### 8. General Notes
 - All scripts must be run from the project root or the correct subfolder as described above.
 - For label arguments, always use one of the 9 supported labels exactly as listed.
 - For more details, see the comments at the top of each script.

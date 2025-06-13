@@ -2,3 +2,7 @@
 *.csv
 /training_data/preprocessed/
 *__pycache__/
+/dist/
+/build/
+/.dist/
+/.build/
