@@ -1,8 +1,9 @@
 ## Table of Contents
 1. [Usage](#usage)
-2. [GEQ](#game-experience-questionnaire-geq)
-3. [SUS](#system-usability-scale-sus)
-4. [Instructions](#Instructions)
+2. [Custom Questionnaire](#custom-questionnaire)
+3. [GEQ](#game-experience-questionnaire-geq)
+4. [SUS](#system-usability-scale-sus)
+5. [Instructions](#Instructions)
 
 ## Usage
 1. __record_eeg.py:__ record EEG data for training model
@@ -12,6 +13,13 @@
 4. __train.py:__ train the model using the preprocessed data.
    <br>The preprocessed data should be saved as ```EEG_CNN/training_data/preprocessed/eeg_labels.py``` and ```EEG_CNN/training_data/preprocessed/eeg_segments.py``` (automatically saved to this location)
 5. __predict_eeg.py__: predict EEG signals in real time using ```model.keras```.
+
+## Custom Questionnaire
+||Question|Strongly Disagree<br>(1)|Disagree<br>(2)|Neutral<br>(3)|Agree<br>(4)|Strongly Agree<br>(5)|
+|-|-|-|-|-|-|-|
+|1|The game was fun to play||||||
+|2|The EEG has high mental demands that I cannot make timely decisions in the game||||||
+|3|I prefer playing EEG games than pure EEG data collection session||||||
 
 ## Game Experience Questionnaire (GEQ)
 [Download](https://pure.tue.nl/ws/files/21666907/Game_Experience_Questionnaire_English.pdf)
