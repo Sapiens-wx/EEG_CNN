@@ -1,6 +1,6 @@
 ## Table of Contents
 1. [Usage](#usage)
-2. [Custom Questionnaire](#custom-questionnaire)
+2. [EGQ](#eeg-game-questionnaire-egq)
 3. [GEQ](#game-experience-questionnaire-geq)
 4. [SUS](#system-usability-scale-sus)
 5. [Instructions](#Instructions)
@@ -14,12 +14,15 @@
    <br>The preprocessed data should be saved as ```EEG_CNN/training_data/preprocessed/eeg_labels.py``` and ```EEG_CNN/training_data/preprocessed/eeg_segments.py``` (automatically saved to this location)
 5. __predict_eeg.py__: predict EEG signals in real time using ```model.keras```.
 
-## Custom Questionnaire
+## EEG Game Questionnaire (EGQ)
+This is a five-question questionnaire designed by us to target specifically at evaluating EEG-controlled games.
 ||Question|Strongly Disagree<br>(1)|Disagree<br>(2)|Neutral<br>(3)|Agree<br>(4)|Strongly Agree<br>(5)|
 |-|-|-|-|-|-|-|
-|1|The game was fun to play||||||
+|1|I think using an EEG controller makes the game more fun than a traditional controller||||||
 |2|The EEG has high mental demands that I cannot make timely decisions in the game||||||
-|3|I prefer playing EEG games than pure EEG data collection session||||||
+|3|I prefer playing this EEG game over participating in a traditional EEG data collection session||||||
+|4|I felt mentally exhausted while playing this game using EEG control||||||
+|5|I felt the EEG controller responded to my intention||||||
 
 ## Game Experience Questionnaire (GEQ)
 [Download](https://pure.tue.nl/ws/files/21666907/Game_Experience_Questionnaire_English.pdf)
