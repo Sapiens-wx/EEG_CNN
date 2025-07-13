@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, InputLayer, Dropout, Conv1D, Conv2D, Flatten, Reshape, MaxPooling1D, MaxPooling2D, AveragePooling2D, BatchNormalization, Permute, ReLU, Softmax
 from tensorflow.keras.optimizers.legacy import Adam
@@ -32,10 +33,12 @@ if __name__ == "__main__":
     # check if gpu is available
     print("GPU Available:", tf.config.list_physical_devices('GPU'))
     # train model
+    early_stop=EarlyStopping(monitor='val_loss', patience=2, restore_best_weights=True)
     history=cnn.fit(x_train, y_train,
-                    epochs= 300,
-                    batch_size=32,
-                    validation_data=(x_test, y_test)
+        epochs=30,
+        batch_size=32,
+        validation_data=(x_test, y_test),
+        callbacks=[early_stop]
     )
 
     loss, accuracy=cnn.evaluate(x_test, y_test)

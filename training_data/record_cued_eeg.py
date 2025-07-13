@@ -1,7 +1,14 @@
 from muselsl import stream, record  # Muse LSL library for streaming and recording EEG data
 from datetime import datetime       # For generating timestamps
 import os                           # For file and folder handling
+import sys
+from pathlib import Path
 import rmdup
+import time;
+import threading;
+parent_dir=str(Path(__file__).parent.parent);
+sys.path.append(parent_dir);
+import config; # read configurations
 
 # Function to start Muse streaming
 def start_stream():
@@ -46,6 +53,33 @@ def record_eeg_data(duration, label):
     except Exception as e:
         print("Error recording EEG data:", e)
 
+def calculate_duration():
+    """
+    calculates the duration of the recording given taskLength and loopCount
+    """
+    return (config.recordEEG.loopCount*len(config.recordEEG.commands)+1)*config.recordEEG.taskLength;
+# Generate cues
+def generateCues():
+    """
+    l: left, r: right, s: rest
+    we need six transitions: l->r,l->s,r->l,r->s,s->l,s->r.
+
+    cue will start with r, then
+    l->r->s->l->s->r
+    repeat this loop, each loop collects each of the six transitions exactly once.
+
+    config.taskLength: length of thinking each task
+    config.loopCount: how many time do you want to repeat this loop
+    """
+    commandIdx=0;
+    print('right');
+    for i in range(0,config.recordEEG.loopCount):
+        for j in range(0,len(config.recordEEG.commands)):
+            time.sleep(config.recordEEG.taskLength);
+            print(config.recordEEG.commands[j]);
+    time.sleep(config.recordEEG.taskLength);
+    print('session ends');
+
 # Main function
 if __name__ == "__main__":
     """
@@ -56,16 +90,20 @@ if __name__ == "__main__":
         2. Specify the duration and label for the recording.
         3. Save the recording to a CSV file in the current working directory.
     """
+    cue_thread=threading.Thread(target=generateCues);
+    duration=calculate_duration();
 
     # Step 1: Start Muse LSL stream (if Muse is not already streaming)
     #start_stream()  # Run this only if the Muse device is not already streaming
 
     # Step 2: Specify recording duration and label
-    duration = 60  # Duration in seconds (Adjustable: change to desired recording length)
+    #duration = 60  # Duration in seconds (Adjustable: change to desired recording length)
     label = input("Enter the label for this recording (e.g., left, right, rest): ")
+    cue_thread.start();
 
     # Step 3: Record EEG data
     filename=record_eeg_data(duration, label)
+    cue_thread.join();
     
     # Step 4: Remove duplicate lines. will require the .exe file "remove_duplicate.exe"
     #remove_duplicate_lines() #usable in all OS systems, but slower

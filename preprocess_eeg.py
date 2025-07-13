@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy.signal import butter, lfilter
 import os
+import config
 
 # Bandpass filter function
 def bandpass_filter(data, lowcut, highcut, fs, order=4):
@@ -23,23 +24,32 @@ def bandpass_filter(data, lowcut, highcut, fs, order=4):
     return lfilter(b, a, data)  # Apply the filter
 
 # Segment function
-def segment_data(data, window_size, step_size):
+def segment_data(data):
     """
     Segments EEG data into fixed-size windows with overlapping.
     Parameters:
         data: 2D numpy array (time points x channels).
-        labels: 1D numpy array of labels corresponding to each time point.
-        window_size: Number of time points in each segment.
-        step_size: Number of time points to slide the window forward.
     Returns:
         segments: 3D numpy array (num_segments x window_size x num_channels).
         segment_labels: 1D numpy array of labels for each segment.
     """
+    taskLengthHz=int(config.recordEEG.taskLength*config.recordEEG.hzPerSec);
+    transitionLengthHz=int(config.recordEEG.transitionLength*config.recordEEG.hzPerSec);
+    windowSizeHz=int(config.recordEEG.windowSize*config.recordEEG.hzPerSec);
+    stepSizeHz=int(config.recordEEG.stepSize*config.recordEEG.hzPerSec);
+    commandsLength=len(config.recordEEG.commands);
+
     segments = []
-    for i in range(0, len(data) - window_size, step_size):
-        window = data[i:i + window_size]  # Extract window
-        segments.append(window)
-    return np.array(segments)
+    labels=[]
+    for loop in range(0, config.recordEEG.loopCount):
+        loopStartHz=taskLengthHz+taskLengthHz*commandsLength*loop;
+        for commandIdx in range(0, commandsLength):
+            commandStartHz=loopStartHz+taskLengthHz*commandIdx;
+            windowStart=commandStartHz+transitionLengthHz-windowSizeHz;
+            for i in range(windowStart, commandStartHz+1, stepSizeHz):
+                segments.append(data[i:i+windowSizeHz]);
+                labels.append(config.CommandEnum2Label(config.recordEEG.commandsEnum[commandIdx]));
+    return (np.array(labels), np.array(segments));
 
 # Main preprocessing function. called by predict_eeg.py
 def preprocess_data(data, lowcut=1, highcut=50, fs=256):
@@ -62,8 +72,6 @@ def preprocess_data(data, lowcut=1, highcut=50, fs=256):
 
 # Run the preprocessing script
 if __name__ == "__main__":
-    window_size=256;
-    step_size=128;
     # init segments (which will be saved to numpy file)
     total_segments=[];
     total_labels=[];
@@ -73,30 +81,20 @@ if __name__ == "__main__":
         if file.endswith(".csv"): # process only CSV files
             df=pd.read_csv(os.path.join(data_folder, file));
             df = df.drop(columns=['timestamps']).values  # Extract EEG channels (all columns except 'Label')
-            label=0;
-            # extract label from the filename and assign it to a new column
-            if "left" in file.lower():
-                label=0; # Assign label 0 for "left"
-            elif "right" in file.lower():
-                label=1; # Assign label 1 for "right"
-            elif "rest" in file.lower():
-                label=2; # Assign label 2 for "rest"
-            else:
-                print(f"Warning: No label assigned for file {file}. Skipping...");
-                continue;
             # preprocess data
             df=preprocess_data(df);
             # Segment data
-            segments = segment_data(df, window_size, step_size)
+            labels,segments = segment_data(df)
             total_segments.extend(segments);
-            labels=[0,0,0]; # output shape: (3,). initialize output
-            labels[label]=1; # label the correct class with value 1
-            for _ in range(segments.shape[0]):
-                total_labels.append(labels);
+            total_labels.extend(labels);
     # Save preprocessed data
     total_segments=np.array(total_segments);
     total_labels=np.array(total_labels);
     print(f"segment shape {total_segments.shape}, label shape {total_labels.shape}");
+    for i in range(0, total_segments.shape[0]):
+        print(total_segments[i]);
+        print(total_labels[i]);
+        print("-------------------");
     save_folder = os.path.join("training_data\preprocessed") # CHANGE THIS path to your output folder
     np.save(os.path.join(save_folder, "eeg_segments.npy"), np.array(total_segments))
     np.save(os.path.join(save_folder, "eeg_labels.npy"), np.array(total_labels))

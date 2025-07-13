@@ -60,7 +60,7 @@ def moving_average(data, window_size=5):
 
 # Real-time prediction loop
 buffer = []  # Buffer to store incoming EEG samples
-sequence_length = 256  # Number of samples per sequence
+sequence_length = int(config.recordEEG.hzPerSec)  # Number of samples per sequence
 
 # used for handle keyboard input
 lastKey=Key.left;

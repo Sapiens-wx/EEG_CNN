@@ -130,7 +130,7 @@ if __name__ == "__main__":
     current_dir = os.path.dirname(os.path.abspath(__file__))
     csv_files = [os.path.join(current_dir, f) for f in os.listdir(current_dir) 
                 if f.endswith(".csv") and f.startswith("eeg_")]
-    
+    #csv_files=["eeg_left_20250610_162212.csv"];
     # 询问用户是否使用统一的Y轴范围
     while True:
         response = input("\nDo you want to use unified Y-axis range for all plots? (Y/n): ").lower()
