@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split
 import model
 import numpy as np
 import os
+import sys
 
 # Load preprocessed data
 segments = np.load(os.path.join("training_data\preprocessed\eeg_segments.npy"))  # CHANGE THIS PATH
@@ -20,9 +21,30 @@ print(f"y_train shape: {y_train.shape}")
 print(f"X_test shape: {x_test.shape}")
 print(f"y_test shape: {y_test.shape}")
 
-# Initialize CNN model
+# 检查标签shape是否为9类one-hot
+if y_train.shape[-1] != 9:
+    raise ValueError(f"y_train shape[-1]={y_train.shape[-1]}, 但应为9（9类one-hot标签）。请检查预处理脚本和数据！")
+
+# Parse model type and epoch from command line
+model_type = "cnn"  # default
+epochs = 100        # default
+for i, arg in enumerate(sys.argv):
+    if arg in ("--model_type", "-m") and i + 1 < len(sys.argv):
+        model_type = sys.argv[i + 1]
+    if arg in ("--epoch", "-epoch", "-epochs") and i + 1 < len(sys.argv):
+        try:
+            epochs = int(sys.argv[i + 1])
+        except ValueError:
+            print("Invalid epoch value, using default 100.")
+
+# Initialize model according to model_type
 model_name="model.keras";
-cnn = model.LoadModel(model_name);
+if model_type == "cnn":
+    cnn = model.LoadCNNModel(model_name)
+elif model_type == "transformer":
+    cnn = model.LoadTransformerModel(model_name)
+else:
+    raise ValueError(f"Unknown model type: {model_type}")
 
 # Training loop
 if __name__ == "__main__":
@@ -32,10 +54,11 @@ if __name__ == "__main__":
     # check if gpu is available
     print("GPU Available:", tf.config.list_physical_devices('GPU'))
     # train model
-    history=cnn.fit(x_train, y_train,
-                    epochs= 300,
-                    batch_size=32,
-                    validation_data=(x_test, y_test)
+    history = cnn.fit(
+        x_train, y_train,
+        epochs=epochs,
+        batch_size=32,
+        validation_data=(x_test, y_test)
     )
 
     loss, accuracy=cnn.evaluate(x_test, y_test)

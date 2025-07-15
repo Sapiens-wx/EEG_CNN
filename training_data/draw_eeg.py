@@ -2,6 +2,7 @@ import os
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import sys
 
 def get_data_range(csv_files=None, single_file=None):
     """
@@ -118,7 +119,8 @@ def plot_csv_data(csv_file_path, unified_y_min=None, unified_y_max=None):
         plt.tight_layout()
 
         # 保存图片
-        output_filename = csv_file_path + ".png"
+        base_name = os.path.splitext(csv_file_path)[0]  # 移除.csv扩展名
+        output_filename = f"{base_name}.png"
         plt.savefig(output_filename, dpi=300)
         plt.close()
         print(f"Generated plot for {os.path.basename(csv_file_path)}")
@@ -128,36 +130,84 @@ def plot_csv_data(csv_file_path, unified_y_min=None, unified_y_max=None):
 
 if __name__ == "__main__":
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    csv_files = [os.path.join(current_dir, f) for f in os.listdir(current_dir) 
-                if f.endswith(".csv") and f.startswith("eeg_")]
     
-    # 询问用户是否使用统一的Y轴范围
-    while True:
-        response = input("\nDo you want to use unified Y-axis range for all plots? (Y/n): ").lower()
-        if response in ['y', 'yes', '']:  # 空字符串表示直接按回车，默认为yes
-            unified_scale = True
-            break
-        elif response in ['n', 'no']:
-            unified_scale = False
-            break
-        else:
-            print("Please enter 'y' or 'n'")
+    # 检查是否是清理模式
+    clear_mode = "-clear" in sys.argv
     
-    # 获取统一的Y轴范围（如果需要）
-    unified_y_min = None
-    unified_y_max = None
-    if unified_scale:
-        unified_y_min, unified_y_max = get_data_range(csv_files)
-        print(f"\nUsing unified Y-axis range: [{unified_y_min}, {unified_y_max}]")
+    # 解析命令行参数
+    draw_types = []
+    if len(sys.argv) > 1:
+        if "-left" in sys.argv:
+            draw_types.append("left")
+        if "-right" in sys.argv:
+            draw_types.append("right")
+        if "-rest" in sys.argv:
+            draw_types.append("rest")
+    
+    # 获取所有符合条件的文件
+    all_csv_files = [os.path.join(current_dir, f) for f in os.listdir(current_dir) 
+                    if f.endswith(".csv") and f.startswith("eeg_")]
+    
+    # 根据命令行参数筛选文件
+    if draw_types:
+        csv_files = [f for f in all_csv_files if any(t in f.lower() for t in draw_types)]
     else:
-        print("\nUsing individual Y-axis range for each plot")
+        csv_files = all_csv_files
     
-    # 处理所有符合命名规则的CSV文件
-    files_processed = 0
-    for file_path in csv_files:
-        plot_csv_data(file_path, unified_y_min, unified_y_max)
-        files_processed += 1
-    
-    print(f"\nTotal files processed: {files_processed}")
-    print(f"Scale mode: {'Unified' if unified_scale else 'Individual'}")
-    os.system("pause")
+    if not csv_files:
+        print("No matching CSV files found.")
+        if draw_types:
+            print(f"Specified types: {', '.join(draw_types)}")
+        sys.exit(1)
+
+    if clear_mode:
+        # 清理模式：删除对应的PNG文件
+        files_processed = 0
+        for csv_file in csv_files:
+            png_file = os.path.splitext(csv_file)[0] + ".png"
+            if os.path.exists(png_file):
+                try:
+                    os.remove(png_file)
+                    print(f"Deleted: {os.path.basename(png_file)}")
+                    files_processed += 1
+                except Exception as e:
+                    print(f"Error deleting {os.path.basename(png_file)}: {str(e)}")
+        
+        print(f"\nTotal files deleted: {files_processed}")
+        if draw_types:
+            print(f"Types processed: {', '.join(draw_types)}")
+        input("Press Enter to exit...")
+    else:
+        # 绘图模式
+        # 询问用户是否使用统一的Y轴范围
+        while True:
+            response = input("\nDo you want to use unified Y-axis range for all plots? (Y/n): ").lower()
+            if response in ['y', 'yes', '']:  # 空字符串表示直接按回车，默认为yes
+                unified_scale = True
+                break
+            elif response in ['n', 'no']:
+                unified_scale = False
+                break
+            else:
+                print("Please enter 'y' or 'n'")
+        
+        # 获取统一的Y轴范围（如果需要）
+        unified_y_min = None
+        unified_y_max = None
+        if unified_scale:
+            unified_y_min, unified_y_max = get_data_range(csv_files)
+            print(f"\nUsing unified Y-axis range: [{unified_y_min}, {unified_y_max}]")
+        else:
+            print("\nUsing individual Y-axis range for each plot")
+        
+        # 处理所有符合条件的CSV文件
+        files_processed = 0
+        for file_path in csv_files:
+            plot_csv_data(file_path, unified_y_min, unified_y_max)
+            files_processed += 1
+        
+        print(f"\nTotal files processed: {files_processed}")
+        print(f"Scale mode: {'Unified' if unified_scale else 'Individual'}")
+        if draw_types:
+            print(f"Types processed: {', '.join(draw_types)}")
+        input("Press Enter to exit...")

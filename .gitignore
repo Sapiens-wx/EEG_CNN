@@ -3,3 +3,7 @@
 /training_data/preprocessed/
 *__pycache__/
 *imgui.ini
+/dist/
+/build/
+/.dist/
+/.build/
