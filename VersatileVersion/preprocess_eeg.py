@@ -4,6 +4,7 @@ from labels import label_map, validate_labels, format_valid_labels_message
 import argparse
 import pandas as pd
 from datetime import datetime
+from scipy.signal import butter, filtfilt
 
 def parse_labels(label_str):
     # 使用models.py中的函数验证和转换labels
@@ -38,6 +39,15 @@ def preprocess_files(labels, window_size, sliding_window):
             for ch in ["TP9", "AF7", "AF8", "TP10"]:
                 signals[ch] = signals[ch] - signals["Right AUX"]
             signals = signals[["TP9", "AF7", "AF8", "TP10"]]
+            # Bandpass filter 5-40Hz
+            fs = 256  # 假设采样率为256Hz，如有不同请修改
+            lowcut = 5
+            highcut = 40
+            nyq = 0.5 * fs
+            b, a = butter(4, [lowcut/nyq, highcut/nyq], btype='band')
+            # 对每个通道滤波
+            for ch in signals.columns:
+                signals[ch] = filtfilt(b, a, signals[ch].values)
             # Sliding window
             arr = signals.values
             for start in range(0, len(arr) - window_size + 1, sliding_window):

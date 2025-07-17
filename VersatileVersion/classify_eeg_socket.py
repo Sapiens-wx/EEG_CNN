@@ -42,6 +42,7 @@ model.load_weights(model_path)
 # 实时采集EEG数据（muselsl）并滑动窗口分类
 from muselsl import stream, get_data
 import time
+from scipy.signal import butter, filtfilt
 
 window = []
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -53,11 +54,20 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         if sample is None:
             time.sleep(0.01)
             continue
-        # 预处理
+        # 预处理：四通道减去Right AUX
         eeg = [sample[0]-sample[4], sample[1]-sample[4], sample[2]-sample[4], sample[3]-sample[4]]
         window.append(eeg)
         if len(window) >= args.windowSize:
             segment = np.array(window[:args.windowSize])
+            # 滤波 5-40Hz
+            fs = 256  # 采样率，如有不同请修改
+            lowcut = 5
+            highcut = 40
+            nyq = 0.5 * fs
+            b, a = butter(4, [lowcut/nyq, highcut/nyq], btype='band')
+            # 对每个通道滤波
+            for ch in range(4):
+                segment[:, ch] = filtfilt(b, a, segment[:, ch])
             segment = segment.reshape((1, args.windowSize, 4))
             pred = model.predict(segment)[0]
             msg = json.dumps({"probs": pred.tolist()})
