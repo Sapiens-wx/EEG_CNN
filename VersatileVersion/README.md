@@ -170,6 +170,23 @@ Dual Attention Transformer providing stronger feature representation capabilitie
 
 1. **Device Connection**: Ensure your EEG device is properly connected and transmitting data through an LSL stream. The system is compatible with any device that outputs EEG data via LSL; while `muselsl` and 'BlueMuse' are commonly used for Muse devices, any LSL-compliant stream will work.
 2. **Participant Comfort**: Avoid causing frustration or fatigue for participants during data collection. Ensure breaks are provided and instructions are clear to maintain motivation and data quality.
+
+   **Display Placement**: If possible, ensure the game screen is within the participant's 30° field of view. This may help reduce potential motion sickness. The recommended minimum viewing distance can be calculated using the formula:
+
+   ```
+   d = w / (2 * tan(15°))
+   ```
+
+   Where:
+   - `d`: Minimum viewing distance (in the same units as `w`)
+   - `w`: Width of the game screen
+   - `tan(15°) ≈ 0.2679`
+
+   Example minimum distances for full-screen operation:
+   - For a 24-inch display (16:9 aspect ratio, width ≈ 20.9 inches): `d ≈ 39.1` inches (≈ 99.3 cm)
+   - For a 27-inch display (16:9 aspect ratio, width ≈ 23.5 inches): `d ≈ 44.0` inches (≈ 111.8 cm)
+
+   These are only recommendations and may vary based on individual preferences and experimental setups.
 3. **Model Selection**: Choose appropriate model architecture based on data complexity. However, the system is designed to be flexible and can adapt to different model architectures as needed. You can keep the recorded data, or preprocessed .npy file under ['preprocessed_data'](./preprocessed_data/), and use it for training with different models without needing to re-record data.
 4. **Parameter Tuning**: Adjust window size and threshold parameters according to specific application scenarios. Further tuning is not provided by commandline arguments, but you can modify the parameters in the respective Python files directly.
 

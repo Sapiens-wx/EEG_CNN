@@ -3,8 +3,3 @@
 *.npy
 *__pycache__/
 *imgui.ini
-
-# Ensure VersatileVersion folder is tracked except __pycache__
-!VersatileVersion/
-!VersatileVersion/**
-VersatileVersion/**/__pycache__/

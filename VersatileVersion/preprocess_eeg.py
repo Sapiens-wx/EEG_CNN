@@ -1,4 +1,3 @@
-
 import os
 from labels import label_map, validate_labels, format_valid_labels_message
 import argparse
@@ -16,7 +15,7 @@ def parse_labels(label_str):
         raise ValueError(error_msg)
     return selected, abbrs_out
 
-def preprocess_files(labels, window_size, sliding_window):
+def preprocess_files(labels, window_size, sliding_window, lowcut, highcut):
     # Find files for each label
     data_segments = []
     data_labels = []
@@ -41,8 +40,6 @@ def preprocess_files(labels, window_size, sliding_window):
             signals = signals[["TP9", "AF7", "AF8", "TP10"]]
             # Bandpass filter 5-40Hz
             fs = 256  # 假设采样率为256Hz，如有不同请修改
-            lowcut = 5
-            highcut = 40
             nyq = 0.5 * fs
             b, a = butter(4, [lowcut/nyq, highcut/nyq], btype='band')
             # 对每个通道滤波
@@ -65,11 +62,22 @@ def main():
     parser.add_argument("-labels", type=str, required=True, help="Comma separated labels to use, e.g. left,right-to-left")
     parser.add_argument("-windowSize", type=int, default=256, help="Window size for segmentation")
     parser.add_argument("-slidingWindow", type=int, default=128, help="Sliding window step")
+    parser.add_argument("-bandPass", type=str, default="5,40", help="Bandpass filter range as lowcut,highcut (default: 5,40)")
     args = parser.parse_args()
 
     labels, abbrs = parse_labels(args.labels)
     window_size = args.windowSize
     sliding_window = args.slidingWindow
+
+    # Parse bandPass argument
+    try:
+        lowcut, highcut = map(int, args.bandPass.split(","))
+        if lowcut <= 0 or highcut <= lowcut:
+            raise ValueError
+    except ValueError:
+        print("[ERROR] Invalid bandPass format. Use two positive integers separated by a comma, e.g., 5,40.")
+        return
+
     # 参数校验
     if window_size <= 0:
         print("[ERROR] windowSize must be > 0.")
@@ -77,7 +85,8 @@ def main():
     if sliding_window <= 0 or sliding_window >= window_size:
         print("[ERROR] slidingWindow must be > 0 and < windowSize.")
         return
-    segments, labels_data, missing_labels = preprocess_files(labels, window_size, sliding_window)
+
+    segments, labels_data, missing_labels = preprocess_files(labels, window_size, sliding_window, lowcut, highcut)
     if missing_labels:
         print("[ERROR] Missing EEG files for labels:")
         for lbl in missing_labels:
@@ -87,6 +96,7 @@ def main():
     if not segments:
         print("[ERROR] No data segments to save. Exiting.")
         return
+
     # Save
     outdir = os.path.join(os.path.dirname(__file__), "preprocessed_data")
     if not os.path.exists(outdir):

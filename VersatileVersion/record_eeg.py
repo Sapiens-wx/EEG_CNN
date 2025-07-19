@@ -127,8 +127,8 @@ if __name__ == "__main__":
             print(format_valid_labels_message())
             lable = None
             continue
-        # 只取第一个有效label
-        lable = labels_list[0]
+        # 多标签全部写进文件名，使用标准名并用_分隔
+        lable = '_'.join(labels_list)
         break
 
     # Step 2: Get recording duration

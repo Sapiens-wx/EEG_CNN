@@ -5,6 +5,8 @@ import models
 import socket
 import json
 from labels import validate_labels
+from pylsl import StreamInlet, resolve_stream
+from scipy.signal import butter, filtfilt
 
 parser = argparse.ArgumentParser(description="EEG Classification Socket Streamer")
 parser.add_argument("-model", type=str, required=True, help="Model type: CNN, Transformer, CNN+LSTM, DaViT")
@@ -13,6 +15,7 @@ parser.add_argument("-slidingWindow", type=int, default=128, help="Sliding windo
 parser.add_argument("-labels", type=str, required=True, help="Comma separated labels for EEG data")
 parser.add_argument("-host", type=str, default="127.0.0.1", help="Socket host (default: 127.0.0.1)")
 parser.add_argument("-port", type=int, default=9000, help="Socket port (default: 9000)")
+parser.add_argument("-bufferRate", type=float, default=2.0, help="Buffer size multiplier relative to windowSize (default: 2.0)")
 args = parser.parse_args()
 
 labels_list, _, invalid_labels = validate_labels(args.labels)
@@ -39,25 +42,35 @@ model = models.LoadModel(
 )
 model.load_weights(model_path)
 
-# 实时采集EEG数据（muselsl）并滑动窗口分类
-from muselsl import stream, get_data
-import time
-from scipy.signal import butter, filtfilt
+# Resolve EEG stream
+print("Resolving EEG stream...")
+streams = resolve_stream('type', 'EEG')
+if not streams:
+    print("Error: No EEG stream found. Please ensure the device is streaming.")
+    exit(1)
+
+inlet = StreamInlet(streams[0])
+print("EEG stream resolved. Starting data acquisition...")
+
+# Calculate buffer size
+buffer_size = int(args.windowSize * args.bufferRate)
+if buffer_size <= args.windowSize:
+    print("Error: bufferRate must be greater than 1.0 to ensure effective buffering.")
+    exit(1)
 
 window = []
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((args.host, args.port))
     print(f"Connected to {args.host}:{args.port}")
-    print("Start streaming EEG from muselsl...")
     while True:
-        sample = get_data()  # 获取一帧EEG数据，假设返回[TP9, AF7, AF8, TP10, Right AUX]
+        sample, _ = inlet.pull_sample(timeout=1.0)  # 获取一帧EEG数据
         if sample is None:
-            time.sleep(0.01)
             continue
         # 预处理：四通道减去Right AUX
         eeg = [sample[0]-sample[4], sample[1]-sample[4], sample[2]-sample[4], sample[3]-sample[4]]
         window.append(eeg)
-        if len(window) >= args.windowSize:
+        if len(window) >= buffer_size:
+            # Process only when buffer is full
             segment = np.array(window[:args.windowSize])
             # 滤波 5-40Hz
             fs = 256  # 采样率，如有不同请修改

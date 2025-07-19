@@ -111,3 +111,57 @@ def format_valid_labels_message():
             result += f"  - {info['aliases'][0]} (abbr: {info['abbr']})\n"
     
     return result
+
+def extract_labels_from_filename(filename):
+    """
+    从文件名中提取label并返回对应的label dict，按order排序
+    支持录制数据、预处理数据、模型文件命名
+    只处理csv、npy、keras文件
+    """
+    import os
+    base = os.path.basename(filename)
+    label_str = None
+    # 录制数据: eeg_left_20250708_091151.csv
+    if base.startswith('eeg_') and base.endswith('.csv'):
+        parts = base.split('_')
+        if len(parts) >= 3:
+            label_str = parts[1]
+    # 预处理数据: preprocessed_left_right_20250708_091151.npy
+    elif base.startswith('preprocessed_') and base.endswith('.npy'):
+        label_str = base[len('preprocessed_'):].split('_')[0]
+        # 支持多个label
+        if '_' in base[len('preprocessed_'):]:
+            label_str = base[len('preprocessed_'):].split('_')[0]
+            # 如果有多个label（如 left_right），用下划线分割
+            label_str = label_str.replace('-', ',').replace('_', ',')
+    # 模型文件: model_left_right_20250708_091151.keras
+    elif base.startswith('model_') and base.endswith('.keras'):
+        label_str = base[len('model_'):].split('_')[0]
+        if '_' in base[len('model_'):]:
+            label_str = base[len('model_'):].split('_')[0]
+            label_str = label_str.replace('-', ',').replace('_', ',')
+    if not label_str:
+        return []
+    # 分割并标准化
+    labels = [normalize_label(lbl) for lbl in label_str.split(',')]
+    # 构建别名到标准label的映射
+    alias_to_label = {}
+    for std_label, info in label_map.items():
+        for alias in info["aliases"]:
+            alias_to_label[normalize_label(alias)] = std_label
+    # 收集label dict
+    label_dicts = []
+    for lbl in labels:
+        if lbl in alias_to_label:
+            std_label = alias_to_label[lbl]
+            label_dicts.append({std_label: label_map[std_label]})
+    # 按order排序
+    label_dicts_sorted = sorted(label_dicts, key=lambda d: list(d.values())[0]["order"])
+    return label_dicts_sorted
+
+def get_label_count_from_filename(filename):
+    """
+    获取文件名中的label数量，服用extract_labels_from_filename
+    """
+    label_dicts = extract_labels_from_filename(filename)
+    return len(label_dicts)
