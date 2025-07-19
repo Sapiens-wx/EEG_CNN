@@ -1,6 +1,8 @@
 import os
 import pylsl
-import datetime
+import time
+import pandas as pd
+from datetime import datetime
 from labels import validate_labels, format_valid_labels_message
 
 def precise_record(duration, label, show_progressbar):
@@ -27,7 +29,6 @@ def precise_record(duration, label, show_progressbar):
     if show_progressbar:
         try:
             from tqdm import tqdm
-            import time
             bar = tqdm(
                 total=duration,
                 desc="Recording...",

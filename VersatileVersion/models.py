@@ -36,6 +36,7 @@ def LoadModel(model_type, windowSize, num_classes, model_optimizer='adam'):
         case _:
             raise ValueError(f"Unknown model type: {model_type}")
 
+
 def CNN(windowSize, num_classees, model_optimizer = 'adam'):
     import tensorflow as tf
     from tensorflow.keras import layers, models
