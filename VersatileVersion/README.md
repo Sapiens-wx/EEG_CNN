@@ -32,6 +32,8 @@ VersatileVersion/
 
 Make sure to install the following Python packages:
 
+**Strongly recommended to use Python 3.12 version.**
+
 ```bash
 pip install tensorflow
 pip install numpy pandas
@@ -79,14 +81,21 @@ Train the classification model:
 python train_model.py -model CNN -labels "left,right,neutral" -epochs 100 -windowSize 256 -slidingWindow 128 0.8
 ```
 
+Alternatively, if you have a preprocessed file, you can skip the label recognition step:
+
+```bash
+python train_model.py -model CNN -preprocessedFilePath "path/to/preprocessed_file.npy" -epochs 100
+python train_model.py -model CNN -label "left,right,neutral" -epochs 100
+```
+
 Parameter description:
 - `-model`: Model type (CNN, Transformer, CNN+LSTM, DaViT)
 - `-labels`: Label list
 - `-epochs`: Number of training epochs
 - `-windowSize`: Time window size
 - `-slidingWindow`: Sliding window step size (number of samples). When segmenting EEG data, each window advances by this step size, determining the overlap between windows. For example, with `-windowSize 256 -slidingWindow 128`, each window contains 256 samples and moves forward by 128 samples, resulting in 50% overlap. Smaller step sizes produce more samples, potentially improving model performance but increasing data volume and computation.
-
 - `-trainDataRatio`: Last parameter is the training data ratio (e.g., `0.8` means 80% of data is used for training and 20% for testing).
+- `-preprocessedFilePath`: Path to a preprocessed `.npy` file. If provided, skips the label recognition logic and directly uses the specified file.
 
 ### 4. Real-time Classification
 

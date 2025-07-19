@@ -1,9 +1,10 @@
 *.keras
 *.csv
-/training_data/preprocessed/
+*.npy
 *__pycache__/
 *imgui.ini
-/dist/
-/build/
-/.dist/
-/.build/
+
+# Ensure VersatileVersion folder is tracked except __pycache__
+!VersatileVersion/
+!VersatileVersion/**
+VersatileVersion/**/__pycache__/
