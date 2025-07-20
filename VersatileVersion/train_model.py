@@ -2,6 +2,7 @@ import argparse
 import os
 from labels import validate_labels, format_valid_labels_message
 import glob
+import models
 
 parser = argparse.ArgumentParser(description="EEG Classification Model Training Script")
 parser.add_argument("-model", type=str, required=True, help="Model type: CNN, Transformer, CNN+LSTM, DaViT. Read models.py")
@@ -33,6 +34,15 @@ if args.preprocessedFilePath:
         print(f"Error: The file '{args.preprocessedFilePath}' does not exist.")
         exit(1)
     selected_file = args.preprocessedFilePath
+    # 验证labels
+    labels_list, _, invalid_labels = validate_labels(args.labels)
+    if not labels_list:
+        print("Error: Labels cannot be empty.")
+        exit(1)
+    if invalid_labels:
+        print(f"Error: Invalid labels: {', '.join(invalid_labels)}")
+        print(format_valid_labels_message())
+        exit(1)
     print(f"Using provided preprocessed file: {os.path.basename(selected_file)}")
 else:
     # 验证labels

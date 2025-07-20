@@ -80,18 +80,31 @@ def Transformer(windowSize, num_classees, model_optimizer = 'adam'):
 
 def CNNLSTM(windowSize, num_classees, model_optimizer = 'adam'):
     import tensorflow as tf
-    from tensorflow.keras import layers, models
+    from tensorflow.keras import layers, models, regularizers
 
     model = models.Sequential([
         layers.Input(shape=(windowSize, 4)),  # 4 channels: TP9, AF7, AF8, TP10
-        layers.Conv1D(32, 3, activation='relu'),
-        layers.MaxPooling1D(2),
-        layers.Conv1D(64, 3, activation='relu'),
-        layers.MaxPooling1D(2),
-        layers.LSTM(32, return_sequences=False),
-        layers.Dense(64, activation='relu'),
-        layers.Dropout(0.5),
-        layers.Dense(num_classees, activation='softmax')
+        # CNN
+        layers.Conv1D(filters=8, kernel_size=32, strides=1, padding='same',kernel_regularizer=regularizers.l2(1e-4)),
+        layers.BatchNormalization(),
+        layers.Activation('relu'),
+        layers.MaxPooling1D(pool_size=2),
+
+        layers.Conv1D(filters=16, kernel_size=16, strides=1, padding='same', kernel_regularizer=regularizers.l2(1e-4)),
+        layers.BatchNormalization(),
+        layers.Activation('relu'),
+        layers.MaxPooling1D(pool_size=2),
+        # LSTM
+        #layers.Reshape((64,32)),
+        layers.LSTM(32, return_sequences=True, dropout=0.3, recurrent_dropout=0.2, kernel_regularizer=regularizers.l2(1e-4)),
+        layers.LSTM(16, dropout=0.3, recurrent_dropout=0.2, kernel_regularizer=regularizers.l2(1e-4), recurrent_regularizer=regularizers.l2(1e-4)),
+
+        layers.Dense(8, activation='relu', kernel_regularizer=regularizers.l2(1e-4)),
+        layers.Dropout(0.3),
+
+        # output
+        layers.Dense(num_classees, activation='softmax'),
+
     ])
     model.compile(optimizer=model_optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
     return model
