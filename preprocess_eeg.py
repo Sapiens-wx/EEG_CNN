@@ -1,113 +1,120 @@
-import pandas as pd
-import numpy as np
-from scipy.signal import butter, lfilter
 import os
+from labels import label_map, validate_labels, format_valid_labels_message
+import argparse
+import pandas as pd
+from datetime import datetime
+from scipy.signal import butter, filtfilt
 
-# Bandpass filter function
-def bandpass_filter(data, lowcut, highcut, fs, order=4):
-    """
-    Applies a bandpass filter to the EEG signal.
-    Parameters:
-        data: 1D numpy array of EEG signal data (single channel).
-        lowcut: Lower cutoff frequency of the filter (Hz).
-        highcut: Upper cutoff frequency of the filter (Hz).
-        fs: Sampling frequency of the EEG signal (Hz).
-        order: The order of the Butterworth filter.
-    Returns:
-        Filtered EEG signal as a 1D numpy array.
-    """
-    nyquist = 0.5 * fs  # Nyquist frequency (half the sampling frequency)
-    low = lowcut / nyquist
-    high = highcut / nyquist
-    b, a = butter(order, [low, high], btype='band')  # Create filter coefficients
-    return lfilter(b, a, data)  # Apply the filter
-
-# Segment function
-def segment_data(data, window_size, step_size):
-    """
-    Segments EEG data into fixed-size windows with overlapping.
-    Parameters:
-        data: 2D numpy array (time points x channels).
-        labels: 1D numpy array of labels corresponding to each time point.
-        window_size: Number of time points in each segment.
-        step_size: Number of time points to slide the window forward.
-    Returns:
-        segments: 3D numpy array (num_segments x window_size x num_channels).
-        segment_labels: 1D numpy array of labels for each segment.
-    """
-    segments = []
-    for i in range(0, len(data) - window_size, step_size):
-        window = data[i:i + window_size]  # Extract window
-        segments.append(window)
-    return np.array(segments)
-
-# Main preprocessing function. called by predict_eeg.py
-def preprocess_data(data, lowcut=1, highcut=50, fs=256):
-    """
-    Preprocess EEG data from a combined CSV file and save it as NumPy arrays.
-    Parameters:
-        input_file: Path to the combined CSV file containing raw EEG data and labels.
-        save_folder: Folder where the preprocessed data will be saved.
-        lowcut: Lower cutoff frequency for the bandpass filter (Hz).
-        highcut: Upper cutoff frequency for the bandpass filter (Hz).
-        fs: Sampling frequency of the EEG signal (Hz).
-    """
-    # Apply bandpass filter to each channel
-    filtered_data = np.apply_along_axis(bandpass_filter, axis=0, arr=data, lowcut=lowcut, highcut=highcut, fs=fs)
+def parse_labels(label_str):
+    # 使用models.py中的函数验证和转换labels
+    selected, abbrs_out, invalid_labels = validate_labels(label_str)
     
-    # Normalize each channel (z-score normalization)
-    normalized_data = (filtered_data - np.mean(filtered_data, axis=0)) / np.std(filtered_data, axis=0)
+    # 如果有无效标签，报错并提示
+    if invalid_labels:
+        error_msg = f"Invalid labels: {', '.join(invalid_labels)}.\n{format_valid_labels_message()}"
+        raise ValueError(error_msg)
+    return selected, abbrs_out
 
-    return normalized_data
+def preprocess_files(labels, window_size, sliding_window, lowcut, highcut):
+    # Find files for each label
+    data_segments = []
+    data_labels = []
+    missing_labels = []
+    
+    for label_idx, lbl in enumerate(labels):
+        folder = os.path.join(os.path.dirname(__file__), 'recorded_data')
+        if not os.path.exists(folder):
+            missing_labels.append(lbl)
+            continue
+        files = [f for f in os.listdir(folder) if f.startswith(f"eeg_{lbl}") and f.endswith('.csv')]
+        if not files:
+            missing_labels.append(lbl)
+            continue
+        for file in files:
+            df = pd.read_csv(os.path.join(folder, file))
+            # Ignore timestamps
+            signals = df[["TP9", "AF7", "AF8", "TP10", "Right AUX"]].copy()
+            # Subtract Right AUX
+            for ch in ["TP9", "AF7", "AF8", "TP10"]:
+                signals[ch] = signals[ch] - signals["Right AUX"]
+            signals = signals[["TP9", "AF7", "AF8", "TP10"]]
+            # Bandpass filter 5-40Hz
+            fs = 256  # 假设采样率为256Hz，如有不同请修改
+            nyq = 0.5 * fs
+            b, a = butter(4, [lowcut/nyq, highcut/nyq], btype='band')
+            # 对每个通道滤波
+            for ch in signals.columns:
+                signals[ch] = filtfilt(b, a, signals[ch].values)
+            # Sliding window
+            arr = signals.values
+            for start in range(0, len(arr) - window_size + 1, sliding_window):
+                window = arr[start:start+window_size]
+                data_segments.append(window)
+                # Create one-hot label
+                one_hot_label = [0] * len(labels)
+                one_hot_label[label_idx] = 1
+                data_labels.append(one_hot_label)
+    
+    return data_segments, data_labels, missing_labels
 
-# 9-category definitions (统一label名称和顺序)
-CATEGORY_NAMES = [
-    "left", "right", "neutral",
-    "left to right", "right to left",
-    "left to neutral", "right to neutral",
-    "neutral to left", "neutral to right"
-]
-CATEGORY_NAME_TO_IDX = {name: idx for idx, name in enumerate(CATEGORY_NAMES)}
-CATEGORY_IDX_TO_NAME = {idx: name for idx, name in enumerate(CATEGORY_NAMES)}
+def main():
+    parser = argparse.ArgumentParser(description="EEG Preprocessing Script")
+    parser.add_argument("-labels", type=str, required=True, help="Comma separated labels to use, e.g. left,right-to-left")
+    parser.add_argument("-windowSize", type=int, default=256, help="Window size for segmentation")
+    parser.add_argument("-slidingWindow", type=int, default=128, help="Sliding window step")
+    parser.add_argument("-bandPass", type=str, default="5,40", help="Bandpass filter range as lowcut,highcut (default: 5,40)")
+    args = parser.parse_args()
 
-def extract_label_from_filename(filename):
-    lower = filename.lower().replace('-', ' ').replace('_', ' ')
-    for name in CATEGORY_NAMES:
-        name_key = name.lower().replace('-', ' ').replace('_', ' ')
-        if name_key in lower:
-            return CATEGORY_NAME_TO_IDX[name]
-    # fallback: try partial match
-    for name in CATEGORY_NAMES:
-        if name.split()[0] in lower:
-            return CATEGORY_NAME_TO_IDX[name]
-    return -1
+    labels, abbrs = parse_labels(args.labels)
+    window_size = args.windowSize
+    sliding_window = args.slidingWindow
 
-# Run the preprocessing script
+    # Parse bandPass argument
+    try:
+        lowcut, highcut = map(int, args.bandPass.split(","))
+        if lowcut <= 0 or highcut <= lowcut:
+            raise ValueError
+    except ValueError:
+        print("[ERROR] Invalid bandPass format. Use two positive integers separated by a comma, e.g., 5,40.")
+        return
+
+    # 参数校验
+    if window_size <= 0:
+        print("[ERROR] windowSize must be > 0.")
+        return
+    if sliding_window <= 0 or sliding_window >= window_size:
+        print("[ERROR] slidingWindow must be > 0 and < windowSize.")
+        return
+
+    segments, labels_data, missing_labels = preprocess_files(labels, window_size, sliding_window, lowcut, highcut)
+    if missing_labels:
+        print("[ERROR] Missing EEG files for labels:")
+        for lbl in missing_labels:
+            print(f"  - {lbl}")
+        print("[ERROR] Aborting: not all requested labels have data.")
+        return
+    if not segments:
+        print("[ERROR] No data segments to save. Exiting.")
+        return
+
+    # Save
+    outdir = os.path.join(os.path.dirname(__file__), "preprocessed_data")
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    abbr_str = '_'.join([label_map[l]["abbr"] for l in labels])
+    timestr = datetime.now().strftime('%Y%m%d_%H%M%S')
+    outname = f"preprocessed_{'_'.join(labels)}_{timestr}.npy"
+    outpath = os.path.join(outdir, outname)
+    import numpy as np
+    # Save as dictionary containing both segments and labels
+    data_dict = {
+        'segments': np.array(segments),
+        'labels': np.array(labels_data)
+    }
+    np.save(outpath, data_dict, allow_pickle=True)
+    print(f"[INFO] Saved preprocessed data to {outpath}")
+    print(f"[INFO] Segments shape: {data_dict['segments'].shape}")
+    print(f"[INFO] Labels shape: {data_dict['labels'].shape}")
+
 if __name__ == "__main__":
-    window_size = 256
-    step_size = 128
-    total_segments = []
-    total_labels = []
-    data_folder = os.path.join("training_data")
-    for file in os.listdir(data_folder):
-        if file.endswith(".csv"):
-            df = pd.read_csv(os.path.join(data_folder, file))
-            df = df.drop(columns=['timestamps']).values
-            label = extract_label_from_filename(file)
-            if label == -1:
-                print(f"Warning: No label assigned for file {file}. Skipping...")
-                continue
-            df = preprocess_data(df)
-            segments = segment_data(df, window_size, step_size)
-            total_segments.extend(segments)
-            labels = [0] * len(CATEGORY_NAMES)
-            labels[label] = 1
-            for _ in range(segments.shape[0]):
-                total_labels.append(labels)
-    total_segments = np.array(total_segments)
-    total_labels = np.array(total_labels)
-    print(f"segment shape {total_segments.shape}, label shape {total_labels.shape}")
-    save_folder = os.path.join("training_data", "preprocessed")
-    os.makedirs(save_folder, exist_ok=True)
-    np.save(os.path.join(save_folder, "eeg_segments.npy"), total_segments)
-    np.save(os.path.join(save_folder, "eeg_labels.npy"), total_labels)
+    main()
