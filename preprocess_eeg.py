@@ -15,7 +15,8 @@ def parse_labels(label_str):
         raise ValueError(error_msg)
     return selected, abbrs_out
 
-def preprocess_files(labels, window_size, sliding_window, lowcut, highcut):
+# @param -doFilter do we apply the bandpass filter
+def preprocess_files(labels, window_size, sliding_window, lowcut, highcut, doFilter):
     # Find files for each label
     data_segments = []
     data_labels = []
@@ -38,13 +39,14 @@ def preprocess_files(labels, window_size, sliding_window, lowcut, highcut):
             for ch in ["TP9", "AF7", "AF8", "TP10"]:
                 signals[ch] = signals[ch] - signals["Right AUX"]
             signals = signals[["TP9", "AF7", "AF8", "TP10"]]
-            # Bandpass filter 5-40Hz
-            fs = 256  # 假设采样率为256Hz，如有不同请修改
-            nyq = 0.5 * fs
-            b, a = butter(4, [lowcut/nyq, highcut/nyq], btype='band')
-            # 对每个通道滤波
-            for ch in signals.columns:
-                signals[ch] = filtfilt(b, a, signals[ch].values)
+            if doFilter:
+                # Bandpass filter 5-40Hz
+                fs = 256  # 假设采样率为256Hz，如有不同请修改
+                nyq = 0.5 * fs
+                b, a = butter(4, [lowcut/nyq, highcut/nyq], btype='band')
+                # 对每个通道滤波
+                for ch in signals.columns:
+                    signals[ch] = filtfilt(b, a, signals[ch].values)
             # Sliding window
             arr = signals.values
             for start in range(0, len(arr) - window_size + 1, sliding_window):
@@ -63,6 +65,8 @@ def main():
     parser.add_argument("-windowSize", type=int, default=256, help="Window size for segmentation")
     parser.add_argument("-slidingWindow", type=int, default=128, help="Sliding window step")
     parser.add_argument("-bandPass", type=str, default="5,40", help="Bandpass filter range as lowcut,highcut (default: 5,40)")
+    parser.add_argument("-asCSV", type=int, default=0, help="save as .csv or .npy")
+    parser.add_argument("-doFilter", type=bool, default=True, help="do we apply the bandpass filter")
     args = parser.parse_args()
 
     labels, abbrs = parse_labels(args.labels)
@@ -86,7 +90,7 @@ def main():
         print("[ERROR] slidingWindow must be > 0 and < windowSize.")
         return
 
-    segments, labels_data, missing_labels = preprocess_files(labels, window_size, sliding_window, lowcut, highcut)
+    segments, labels_data, missing_labels = preprocess_files(labels, window_size, sliding_window, lowcut, highcut, args.doFilter)
     if missing_labels:
         print("[ERROR] Missing EEG files for labels:")
         for lbl in missing_labels:
@@ -103,16 +107,30 @@ def main():
         os.makedirs(outdir)
     abbr_str = '_'.join([label_map[l]["abbr"] for l in labels])
     timestr = datetime.now().strftime('%Y%m%d_%H%M%S')
-    outname = f"preprocessed_{'_'.join(labels)}_{timestr}.npy"
-    outpath = os.path.join(outdir, outname)
     import numpy as np
     # Save as dictionary containing both segments and labels
     data_dict = {
         'segments': np.array(segments),
         'labels': np.array(labels_data)
     }
-    np.save(outpath, data_dict, allow_pickle=True)
-    print(f"[INFO] Saved preprocessed data to {outpath}")
+    if args.asCSV==0: # save as npy
+        outname = f"preprocessed_{'_'.join(labels)}_{timestr}.npy"
+        outpath = os.path.join(outdir, outname)
+        np.save(outpath, data_dict, allow_pickle=True)
+        print(f"[INFO] Saved preprocessed data to {outpath}")
+    else: # save as csv
+        # saves at most [args.asCSV] number of csv files
+        for i in range(0, min(len(labels_data), args.asCSV)):
+            df = pd.DataFrame({
+                'TP9': [segments[i][j][0] for j in range(args.windowSize)],
+                'TP7': [segments[i][j][1] for j in range(args.windowSize)],
+                'TP8': [segments[i][j][2] for j in range(args.windowSize)],
+                'TP10': [segments[i][j][3] for j in range(args.windowSize)]
+            })
+            outname = f"preprocessed_{'_'.join(labels)}[{labels_data[i]}]_{timestr}{i}.csv"
+            outpath = os.path.join(outdir, outname)
+            df.to_csv(outpath, index=False) # do not save line numbers
+            print(f"[INFO] Saved preprocessed data to {outpath}")
     print(f"[INFO] Segments shape: {data_dict['segments'].shape}")
     print(f"[INFO] Labels shape: {data_dict['labels'].shape}")
 

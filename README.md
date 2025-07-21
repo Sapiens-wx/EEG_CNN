@@ -79,6 +79,8 @@ Parameter description:
 - `-labels`: Comma-separated label list
 - `-windowSize`: Time window size (number of samples)
 - `-slidingWindow`: Sliding window step size
+- `-asCSV`: [optional] [an integer] if > 0, then save at most [asCSV] segments independently as .csv files
+- `-doFilter`: [optional] [True or False] do we apply bandpass filter (8-40 hz) or the filtfilt (denoise)?
 
 ### 3. Model Training
 

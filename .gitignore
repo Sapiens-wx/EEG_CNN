@@ -4,3 +4,4 @@
 *.npy
 *__pycache__/
 *imgui.ini
+/brainwave_plots/
