@@ -82,7 +82,7 @@ def main():
     if window_size <= 0:
         print("[ERROR] windowSize must be > 0.")
         return
-    if sliding_window <= 0 or sliding_window >= window_size:
+    if sliding_window <= 0 or sliding_window > window_size:
         print("[ERROR] slidingWindow must be > 0 and < windowSize.")
         return
 

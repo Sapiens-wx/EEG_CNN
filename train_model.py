@@ -20,7 +20,7 @@ if args.epochs <= 0:
 if args.windowSize <= 0:
     print("Error: windowSize must be greater than 0.")
     exit(1)
-if args.slidingWindow <= 0 or args.slidingWindow >= args.windowSize:
+if args.slidingWindow <= 0 or args.slidingWindow > args.windowSize:
     print("Error: slidingWindow must be greater than 0 and less than windowSize.")
     exit(1)
 
@@ -100,7 +100,7 @@ else:
                 print("preprocess_eeg.py not found!")
                 exit(1)
             print("Running preprocessing...")
-            result = subprocess.run(["python", preprocess_script, "-labels", ','.join(abbrs)], cwd=os.path.dirname(__file__))
+            result = subprocess.run(["python", preprocess_script, "-labels", ','.join(abbrs), '-slidingWindow', str(args.slidingWindow) ,'-windowSize', str(args.windowSize)], cwd=os.path.dirname(__file__))
             if result.returncode != 0:
                 print("Preprocessing failed.")
                 exit(1)
