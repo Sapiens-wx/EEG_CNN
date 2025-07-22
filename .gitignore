@@ -5,3 +5,4 @@
 *__pycache__/
 *imgui.ini
 /brainwave_plots/
+eeg_env/
