@@ -80,7 +80,8 @@ Parameter description:
 - `-windowSize`: Time window size (number of samples)
 - `-slidingWindow`: Sliding window step size
 - `-asCSV`: [optional] [an integer] if > 0, then save at most [asCSV] segments independently as .csv files
-- `-doFilter`: [optional] [True or False] do we apply bandpass filter (8-40 hz) or the filtfilt (denoise)?
+- `-doBandPass`: [optional] [0 or 1] if ==1, then apply bandpass filter
+- `-normalizationMethod`: [optional] [none, z-score, min-max, robust]. default as z-score. The normalization method used to normalize the signal.
 
 ### 3. Model Training
 

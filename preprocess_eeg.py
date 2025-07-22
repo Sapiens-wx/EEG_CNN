@@ -4,6 +4,8 @@ import argparse
 import pandas as pd
 from datetime import datetime
 from scipy.signal import butter, filtfilt
+import numpy as np
+import normalization
 
 def parse_labels(label_str):
     # 使用models.py中的函数验证和转换labels
@@ -15,8 +17,9 @@ def parse_labels(label_str):
         raise ValueError(error_msg)
     return selected, abbrs_out
 
-# @param -doFilter do we apply the bandpass filter
-def preprocess_files(labels, window_size, sliding_window, lowcut, highcut, doFilter):
+# @param -doBandPass do we apply the bandpass filter
+# @param -normalization do we apply the bandpass filter
+def preprocess_files(labels, window_size, sliding_window, lowcut, highcut, doBandPass, normalizationMethod):
     # Find files for each label
     data_segments = []
     data_labels = []
@@ -39,7 +42,7 @@ def preprocess_files(labels, window_size, sliding_window, lowcut, highcut, doFil
             for ch in ["TP9", "AF7", "AF8", "TP10"]:
                 signals[ch] = signals[ch] - signals["Right AUX"]
             signals = signals[["TP9", "AF7", "AF8", "TP10"]]
-            if doFilter:
+            if doBandPass==1:
                 # Bandpass filter 5-40Hz
                 fs = 256  # 假设采样率为256Hz，如有不同请修改
                 nyq = 0.5 * fs
@@ -47,8 +50,9 @@ def preprocess_files(labels, window_size, sliding_window, lowcut, highcut, doFil
                 # 对每个通道滤波
                 for ch in signals.columns:
                     signals[ch] = filtfilt(b, a, signals[ch].values)
+            arr = np.array(signals.values)
+            arr=normalization.normalize(arr, normalizationMethod)
             # Sliding window
-            arr = signals.values
             for start in range(0, len(arr) - window_size + 1, sliding_window):
                 window = arr[start:start+window_size]
                 data_segments.append(window)
@@ -66,7 +70,8 @@ def main():
     parser.add_argument("-slidingWindow", type=int, default=128, help="Sliding window step")
     parser.add_argument("-bandPass", type=str, default="5,40", help="Bandpass filter range as lowcut,highcut (default: 5,40)")
     parser.add_argument("-asCSV", type=int, default=0, help="save as .csv or .npy")
-    parser.add_argument("-doFilter", type=bool, default=True, help="do we apply the bandpass filter")
+    parser.add_argument("-doBandPass", type=int, default=1, help="[0 or 1] default as 1. do we apply the bandpass filter")
+    parser.add_argument("-normalizationMethod", type=str, default='z-score', help="[none, z-score, min-max, robust] default as z-score. what normalization method do we want?")
     args = parser.parse_args()
 
     labels, abbrs = parse_labels(args.labels)
@@ -90,7 +95,7 @@ def main():
         print("[ERROR] slidingWindow must be > 0 and < windowSize.")
         return
 
-    segments, labels_data, missing_labels = preprocess_files(labels, window_size, sliding_window, lowcut, highcut, args.doFilter)
+    segments, labels_data, missing_labels = preprocess_files(labels, window_size, sliding_window, lowcut, highcut, args.doBandPass, args.normalizationMethod)
     if missing_labels:
         print("[ERROR] Missing EEG files for labels:")
         for lbl in missing_labels:
