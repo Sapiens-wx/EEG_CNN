@@ -1,5 +1,6 @@
 MODEL_ALIASES = {
     'cnn': ['cnn'],
+    'cnn_featureExtraction': ['cnn_featureExtraction','cnn_featExtract'],
     'transformer': ['transformer'],
     'cnn_lstm': ['cnn+lstm', 'cnnlstm', 'cnn_lstm'],
     'dual_attention_transformer': ['davit', 'dualattentiontransformer', 'dual_attention_transformer']
@@ -16,7 +17,7 @@ def validate_model_name(name):
     return get_standard_model_name(name) is not None
 
 
-def LoadModel(model_type, windowSize, num_classes, model_optimizer='adam'):
+def LoadModel(model_type, numSamples, numChannels, num_classes, model_optimizer='adam'):
     import tensorflow as tf
     from tensorflow.keras import layers, models
 
@@ -26,23 +27,25 @@ def LoadModel(model_type, windowSize, num_classes, model_optimizer='adam'):
 
     match standard_name:
         case 'cnn':
-            return CNN(windowSize, num_classes, model_optimizer)
+            return CNN(numSamples, numChannels, num_classes, model_optimizer)
+        case 'cnn_featExtract':
+            return CNN_featExtract(numSamples, numChannels, num_classes, model_optimizer)
         case 'transformer':
-            return Transformer(windowSize, num_classes, model_optimizer)
+            return Transformer(numSamples, numChannels, num_classes, model_optimizer)
         case 'cnn_lstm':
-            return CNNLSTM(windowSize, num_classes, model_optimizer)
+            return CNNLSTM(numSamples, numChannels, num_classes, model_optimizer)
         case 'dual_attention_transformer':
-            return DualAttentionTransformer(windowSize, num_classes, model_optimizer)
+            return DualAttentionTransformer(numSamples, numChannels, num_classes, model_optimizer)
         case _:
             raise ValueError(f"Unknown model type: {model_type}")
 
 
-def CNN(windowSize, num_classees, model_optimizer = 'adam'):
+def CNN(numSamples, numChannels, num_classees, model_optimizer = 'adam'):
     import tensorflow as tf
     from tensorflow.keras import layers, models, regularizers
 
     model = models.Sequential([
-        layers.Input(shape=(windowSize, 4)),  # 4 channels: TP9, AF7, AF8, TP10
+        layers.Input(shape=(numSamples, numChannels)),
         # CNN
         layers.Conv1D(filters=8, kernel_size=32, strides=1, padding='same',kernel_regularizer=regularizers.l2(1e-4)),
         layers.BatchNormalization(),
@@ -64,11 +67,52 @@ def CNN(windowSize, num_classees, model_optimizer = 'adam'):
     model.compile(optimizer = model_optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
     return model
 
-def Transformer(windowSize, num_classees, model_optimizer = 'adam'):
+def CNN_featExtract(numSamples, numChannels, num_classes, model_optimizer = 'adam'):
+    import tensorflow as tf
+    from tensorflow.keras import layers, models, regularizers
+
+    model = models.Sequential([
+        layers.Input(shape=(numSamples, numChannels)),  # 4 channels: TP9, AF7, AF8, TP10
+
+        # 频域特征增强层
+        layers.Conv1D(
+            filters=16, 
+            kernel_size=5,               # 小卷积核捕捉局部频域模式
+            strides=1,
+            padding='same',
+            kernel_regularizer=regularizers.l2(1e-4),
+            activation='relu'           # 直接整合Activation简化结构
+        ),
+        layers.BatchNormalization(),
+        layers.MaxPooling1D(pool_size=2),  # 降采样至 (18, 16)
+
+        # 深层特征提取
+        layers.Conv1D(
+            filters=32, 
+            kernel_size=3,               # 更小的卷积核细化特征
+            strides=1,
+            padding='same',
+            kernel_regularizer=regularizers.l2(1e-4),
+            activation='relu'
+        ),
+        layers.BatchNormalization(),
+        layers.MaxPooling1D(pool_size=2),  # 降采样至 (9, 32)
+
+        # 全局特征聚合
+        layers.GlobalAveragePooling1D(), # 替代Flatten + Dense，减少参数量
+        # 分类头
+        layers.Dense(16, activation='relu', kernel_regularizer=regularizers.l2(1e-4)),
+        layers.Dropout(0.3),
+        layers.Dense(num_classes, activation='softmax')
+    ])
+    model.compile(optimizer = model_optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    return model
+
+def Transformer(numSamples, numChannels, num_classees, model_optimizer = 'adam'):
     import tensorflow as tf
     from tensorflow.keras import layers, models
 
-    inputs = layers.Input(shape=(windowSize, 4))  # 4 channels: TP9, AF7, AF8, TP10
+    inputs = layers.Input(shape=(numSamples, numChannels))  # 4 channels: TP9, AF7, AF8, TP10
     x = layers.Dense(64)(inputs)
     x = layers.Dense(64)(inputs)
     for _ in range(2):
@@ -87,12 +131,12 @@ def Transformer(windowSize, num_classees, model_optimizer = 'adam'):
     model.compile(optimizer= model_optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
     return model
 
-def CNNLSTM(windowSize, num_classees, model_optimizer = 'adam'):
+def CNNLSTM(numSamples, numChannels, num_classees, model_optimizer = 'adam'):
     import tensorflow as tf
     from tensorflow.keras import layers, models, regularizers
 
     model = models.Sequential([
-        layers.Input(shape=(windowSize, 4)),  # 4 channels: TP9, AF7, AF8, TP10
+        layers.Input(shape=(numSamples, numChannels)),  # 4 channels: TP9, AF7, AF8, TP10
         # CNN
         layers.Conv1D(filters=8, kernel_size=32, strides=1, padding='same',kernel_regularizer=regularizers.l2(1e-4)),
         layers.BatchNormalization(),
@@ -118,10 +162,10 @@ def CNNLSTM(windowSize, num_classees, model_optimizer = 'adam'):
     model.compile(optimizer=model_optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
     return model
 
-def DualAttentionTransformer(windowSize, num_classes, model_optimizer = 'adam'):
+def DualAttentionTransformer(numSamples, numChannels, num_classes, model_optimizer = 'adam'):
     import tensorflow as tf
     from tensorflow.keras import layers, models
-    inputs = layers.Input(shape=(windowSize, 4))  # 4 channels: TP9, AF7, AF8, TP10
+    inputs = layers.Input(shape=(numSamples, numChannels))  # 4 channels: TP9, AF7, AF8, TP10
 
     # Channel Attention
     channel_avg = layers.GlobalAveragePooling1D()(inputs)

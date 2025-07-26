@@ -7,6 +7,18 @@ from scipy.signal import butter, filtfilt
 import numpy as np
 import normalization
 from config import recordEEG, labels_to_orders
+import feature_extraction
+
+def check_data(dataset, msg=''):
+    if np.isnan(dataset).any():
+        nan_flat_index = np.where(np.isnan(dataset.ravel()))[0]
+        if len(nan_flat_index) > 0:
+            first_nan_flat = nan_flat_index[0]
+            # 将扁平索引转换为多维坐标
+            first_nan_pos = np.unravel_index(first_nan_flat, dataset.shape)
+            np.set_printoptions(suppress=True, precision=100, linewidth=np.inf)
+            print(f"first nan: {np.array(dataset[first_nan_pos[0]])}")
+        raise ValueError('nan exists in dataset. msg: '+msg)
 
 def parse_labels(label_str, keep_order=False):
     # 使用models.py中的函数验证和转换labels
@@ -45,21 +57,15 @@ def segment_data(arr, window_size, sliding_window):
         i+=taskLen
     return data_segments,data_labels
 
-    for start in range(0, len(arr) - window_size + 1, sliding_window):
-        window = arr[start:start+window_size]
-        data_segments.append(window)
-        # Create one-hot label
-        one_hot_label = [0] * len(labels)
-        one_hot_label[label_idx] = 1
-        data_labels.append(one_hot_label)
-
 # @param -doBandPass do we apply the bandpass filter
 # @param -normalization do we apply the bandpass filter
-def preprocess_files(labels, window_size, sliding_window, lowcut, highcut, doBandPass, normalizationMethod):
+def preprocess_files(labels, window_size, sliding_window, lowcut, highcut, doBandPass, featureExtractionMethod, normalizationMethod):
     recordEEG.SetStandardCuesAndIdx([lbl for _,lbl in enumerate(labels)],[idx for idx,_ in enumerate(labels)], 0);
     # Find files for each label
     missing_labels = []
     labelname='_'.join(labels);
+    total_segments=[];
+    total_labels=[];
     
     folder = os.path.join(os.path.dirname(__file__), 'recorded_data')
     if os.path.exists(folder):
@@ -68,6 +74,7 @@ def preprocess_files(labels, window_size, sliding_window, lowcut, highcut, doBan
             for file in files:
                 df = pd.read_csv(os.path.join(folder, file))
                 # Ignore timestamps
+                check_data(df.values, f"processing file {file}. the best way is to delete the file")
                 signals = df[["TP9", "AF7", "AF8", "TP10", "Right AUX"]].copy()
                 # Subtract Right AUX
                 for ch in ["TP9", "AF7", "AF8", "TP10"]:
@@ -85,8 +92,19 @@ def preprocess_files(labels, window_size, sliding_window, lowcut, highcut, doBan
                 arr=normalization.normalize(arr, normalizationMethod)
                 # Sliding window
                 data_segments, data_labels=segment_data(arr, window_size, sliding_window)
+                # do fft to data_segments
+                if featureExtractionMethod!='none':
+                    featExtractResults=[]
+                    for segment in data_segments:
+                        featExtractResult, freqs=feature_extraction.feature_extract(featureExtractionMethod, segment, lowcut, highcut)
+                        featExtractResults.append(featExtractResult);
+                    data_segments=featExtractResults
+                for segment in data_segments:
+                    total_segments.append(segment)
+                for lbl in data_labels:
+                    total_labels.append(lbl)
     
-    return data_segments, data_labels, missing_labels
+    return total_segments, total_labels, missing_labels
 
 def main():
     parser = argparse.ArgumentParser(description="EEG Preprocessing Script")
@@ -97,6 +115,7 @@ def main():
     parser.add_argument("-asCSV", type=int, default=0, help="save as .csv or .npy")
     parser.add_argument("-doBandPass", type=int, default=1, help="[0 or 1] default as 1. do we apply the bandpass filter")
     parser.add_argument("-normalizationMethod", type=str, default='z-score', help="[none, z-score, min-max, robust] default as z-score. what normalization method do we want?")
+    parser.add_argument("-featureExtraction", type=str, default='none', help="[none, fft, sfft, wavelet] default as none. what feature extraction method do we want?")
     args = parser.parse_args()
 
     labels, abbrs = parse_labels(args.labels, True)
@@ -120,7 +139,7 @@ def main():
         print("[ERROR] slidingWindow must be > 0 and < windowSize.")
         return
 
-    segments, labels_data, missing_labels = preprocess_files(labels, window_size, sliding_window, lowcut, highcut, args.doBandPass, args.normalizationMethod)
+    segments, labels_data, missing_labels = preprocess_files(labels, window_size, sliding_window, lowcut, highcut, args.doBandPass, args.featureExtraction, args.normalizationMethod)
     if missing_labels:
         print("[ERROR] Missing EEG files for labels:")
         for lbl in missing_labels:
@@ -152,10 +171,10 @@ def main():
         # saves at most [args.asCSV] number of csv files
         for i in range(0, min(len(labels_data), args.asCSV)):
             df = pd.DataFrame({
-                'TP9': [segments[i][j][0] for j in range(args.windowSize)],
-                'TP7': [segments[i][j][1] for j in range(args.windowSize)],
-                'TP8': [segments[i][j][2] for j in range(args.windowSize)],
-                'TP10': [segments[i][j][3] for j in range(args.windowSize)]
+                'TP9': [segments[i][j][0] for j in range(len(segments[i]))],
+                'TP7': [segments[i][j][1] for j in range(len(segments[i]))],
+                'TP8': [segments[i][j][2] for j in range(len(segments[i]))],
+                'TP10': [segments[i][j][3] for j in range(len(segments[i]))]
             })
             outname = f"preprocessed_{'_'.join(labels)}[{labels_data[i]}]_{timestr}{i}.csv"
             outpath = os.path.join(outdir, outname)

@@ -40,7 +40,7 @@ class RecordEEG:
     def __CalcDuration(self):
         return (self.taskLength+self.transitionLength)*len(self.cues)*self.loopCount;
     def __init__(self):
-        self.taskLength=3;
+        self.taskLength=8;
         self.transitionLength=1;
         self.hzPerSec=256;
         # below will be set by function Setcues.

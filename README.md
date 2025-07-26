@@ -83,6 +83,7 @@ Parameter description:
 - `-asCSV`: [optional] [an integer] if > 0, then save at most [asCSV] segments independently as .csv files
 - `-doBandPass`: [optional] [0 or 1] if ==1, then apply bandpass filter
 - `-normalizationMethod`: [optional] [none, z-score, min-max, robust]. default as z-score. The normalization method used to normalize the signal.
+- `-featureExtraction`: [optional] [none, fft, sfft, wavelet] default as none. what feature extraction method do we want?
 
 ### 3. Model Training
 

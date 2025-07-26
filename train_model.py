@@ -163,6 +163,14 @@ from sklearn.model_selection import train_test_split
 x_train, x_test, y_train, y_test = train_test_split(
     segments, labels, test_size=1-args.trainDataRatio, random_state=42)
 print(f"[sklearn split] Train: {x_train.shape}, {y_train.shape}; Test: {x_test.shape}, {y_test.shape}")
+def check_data(dataset):
+    if np.isnan(dataset).any():
+        raise ValueError('nan exists in dataset')
+    if np.isinf(dataset).any():
+        raise ValueError('infiniti exists in dataset')
+    print("Data range: min={}, max={}".format(np.min(dataset), np.max(dataset)))
+check_data(x_train)
+check_data(x_test)
 
 # 检查labels是否为one-hot编码
 def is_one_hot(arr):
@@ -180,7 +188,8 @@ if not is_one_hot(y_train) or not is_one_hot(y_test):
 # 根据参数选择模型
 model = models.LoadModel(
     model_type=args.model,
-    windowSize=args.windowSize,
+    numSamples=x_train.shape[1],
+    numChannels=x_train.shape[2],
     num_classes=len(labels_list),
     model_optimizer='adam'
 )
