@@ -3,7 +3,8 @@ MODEL_ALIASES = {
     'cnn_featureExtraction': ['cnn_featureExtraction','cnn_featExtract'],
     'transformer': ['transformer'],
     'cnn_lstm': ['cnn+lstm', 'cnnlstm', 'cnn_lstm'],
-    'dual_attention_transformer': ['davit', 'dualattentiontransformer', 'dual_attention_transformer']
+    'dual_attention_transformer': ['davit', 'dualattentiontransformer', 'dual_attention_transformer'],
+    'hybridcnn': ['hybridcnn', 'hybrid_cnn', 'cnn+spectral']
 }
 
 def get_standard_model_name(name):
@@ -36,6 +37,8 @@ def LoadModel(model_type, numSamples, numChannels, num_classes, model_optimizer=
             return CNNLSTM(numSamples, numChannels, num_classes, model_optimizer)
         case 'dual_attention_transformer':
             return DualAttentionTransformer(numSamples, numChannels, num_classes, model_optimizer)
+        case 'hybridcnn':
+            return HybridCNN(windowSize, num_classes, model_optimizer=model_optimizer)
         case _:
             raise ValueError(f"Unknown model type: {model_type}")
 
@@ -201,3 +204,37 @@ def DualAttentionTransformer(numSamples, numChannels, num_classes, model_optimiz
     model = models.Model(inputs, outputs)
     model.compile(optimizer=model_optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
     return model
+
+
+def HybridCNN(windowSize, num_classes, freq_bins=33, time_bins=5, model_optimizer="adam"):
+    import tensorflow as tf
+    from tensorflow.keras import layers, models, Input
+    from tensorflow.keras.models import Model
+
+    # --- Branch A: 1D CNN on raw waveform ---
+    input_raw = Input(shape=(windowSize, 4), name="raw_input")
+    x1 = layers.Conv1D(8, kernel_size=32, padding='same', activation='relu')(input_raw)
+    x1 = layers.MaxPooling1D(pool_size=2)(x1)
+    x1 = layers.Conv1D(16, kernel_size=16, padding='same', activation='relu')(x1)
+    x1 = layers.MaxPooling1D(pool_size=2)(x1)
+    x1 = layers.GlobalAveragePooling1D()(x1)  # ✅ 用 GAP 替代 Flatten
+
+    # --- Branch B: 2D CNN on SFFT + DWT ---
+    input_freq = Input(shape=(8, freq_bins, time_bins), name="spectral_input")
+    x2 = layers.Permute((2, 3, 1))(input_freq)  # → shape: (freq, time, channels)
+    x2 = layers.Conv2D(16, kernel_size=(3, 3), padding='same', activation='relu')(x2)
+    x2 = layers.MaxPooling2D(pool_size=(2, 2))(x2)
+    x2 = layers.Conv2D(32, kernel_size=(3, 3), padding='same', activation='relu')(x2)
+    x2 = layers.MaxPooling2D(pool_size=(2, 2))(x2)
+    x2 = layers.GlobalAveragePooling2D()(x2)  # ✅ 用 GAP 替代 Flatten
+
+    # --- Merge and output ---
+    merged = layers.Concatenate()([x1, x2])
+    merged = layers.Dense(16, activation='relu')(merged)  # ✅ 降维 Dense
+    merged = layers.Dropout(0.5)(merged)
+    output = layers.Dense(num_classes, activation='softmax')(merged)
+
+    model = Model(inputs=[input_raw, input_freq], outputs=output)
+    model.compile(optimizer=model_optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    return model
+

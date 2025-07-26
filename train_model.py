@@ -3,6 +3,7 @@ import os
 from labels import validate_labels, format_valid_labels_message
 import glob
 import models
+from eeg_features import extract_sfft_and_dwt
 
 parser = argparse.ArgumentParser(description="EEG Classification Model Training Script")
 parser.add_argument("-model", type=str, required=True, help="Model type: CNN, Transformer, CNN+LSTM, DaViT. Read models.py")
@@ -162,7 +163,24 @@ except Exception as e:
 from sklearn.model_selection import train_test_split
 x_train, x_test, y_train, y_test = train_test_split(
     segments, labels, test_size=1-args.trainDataRatio, random_state=42)
-print(f"[sklearn split] Train: {x_train.shape}, {y_train.shape}; Test: {x_test.shape}, {y_test.shape}")
+
+if args.model.lower() in ['hybridcnn', 'hybrid_cnn', 'cnn+spectral']:
+    print("[INFO] Preparing dual-input features for HybridCNN...")
+    # segments.shape: (N, 256, 4)
+    x_raw_train = x_train
+    x_raw_test = x_test
+
+    x_spec_train = np.array([extract_sfft_and_dwt(seg) for seg in x_train])
+    x_spec_test = np.array([extract_sfft_and_dwt(seg) for seg in x_test])
+
+    x_train = [x_raw_train, x_spec_train]
+    x_test = [x_raw_test, x_spec_test]
+
+if isinstance(x_train, list):
+    print(f"[sklearn split] Train: {[x.shape for x in x_train]}, {y_train.shape}; Test: {[x.shape for x in x_test]}, {y_test.shape}")
+else:
+    print(f"[sklearn split] Train: {x_train.shape}, {y_train.shape}; Test: {x_test.shape}, {y_test.shape}")
+
 def check_data(dataset):
     if np.isnan(dataset).any():
         raise ValueError('nan exists in dataset')
@@ -171,6 +189,7 @@ def check_data(dataset):
     print("Data range: min={}, max={}".format(np.min(dataset), np.max(dataset)))
 check_data(x_train)
 check_data(x_test)
+
 
 # 检查labels是否为one-hot编码
 def is_one_hot(arr):
