@@ -4,13 +4,15 @@ import time
 import pandas as pd
 from datetime import datetime
 from labels import validate_labels, format_valid_labels_message
+from config import recordEEG
+from tqdm import tqdm
 
-def precise_record(duration, label, show_progressbar):
+def precise_record(duration, label_name, show_progressbar):
     #placeholder for the precise_record function
     folder = os.path.join(os.path.dirname(__file__), "recorded_data")
     if not os.path.exists(folder):
         os.makedirs(folder)
-    filename = os.path.join(folder, f"eeg_{label}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+    filename = os.path.join(folder, f"eeg_{label_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
     # Assume EEG device is available, connect directly
     streams = pylsl.resolve_streams()
     eeg_streams = [s for s in streams if s.type() == 'EEG']
@@ -23,48 +25,100 @@ def precise_record(duration, label, show_progressbar):
         if (sample is not None):
             break
     print("Data received, starting recording...")
+
     data = []
     timestamps = []
     start_time = time.time()
+    duration = recordEEG.duration
+    cue_duration = recordEEG.taskLength + recordEEG.transitionLength
+    total_cue_phases = len(recordEEG.cues) * recordEEG.loopCount
+    
+    # Initialize progress bars
     if show_progressbar:
         try:
-            from tqdm import tqdm
-            bar = tqdm(
+            # Main recording progress bar (duration)
+            duration_bar = tqdm(
                 total=duration,
                 desc="Recording...",
-                ncols=53,  # 1/3 shorter than original
+                ncols=80,
                 dynamic_ncols=True,
                 mininterval=0.1,
-                bar_format='{l_bar}{bar}| {desc} {postfix}'
+                bar_format='{l_bar}{bar}| {desc} {postfix}',
+                position=0
             )
+            
+            # Cue progress bar will be handled manually
+            cue_bar = None
         except ImportError:
-            print("[WARN] tqdm not installed, progress bar will not be shown. Only 'Recording...' will be displayed.")
-            bar = None
+            print("[WARN] tqdm not installed, progress bar will not be shown.")
+            duration_bar = None
     else:
         print("Recording...", flush=True)
-        bar = None
+        duration_bar = None
+    
     last_update = start_time
+    current_cue_index = 0
+    current_loop = 0
+    
     while (time.time() - start_time) < duration:
+        # Get current time and elapsed time
+        now = time.time()
+        elapsed = now - start_time
+        
+        # Determine current cue phase
+        cue_phase = int(elapsed // cue_duration)
+        current_cue_index = cue_phase % len(recordEEG.cues)
+        current_loop = cue_phase // len(recordEEG.cues)
+        
+        # Get current cue
+        current_cue = recordEEG.cues[current_cue_index]
+        
+        # Build cue progress bar (manual implementation)
+        cue_bar_str = "[{}] |".format(current_cue)
+        cue_progress_width=30;
+        num_cue = len(recordEEG.cues)
+        segment_width = int(cue_progress_width//num_cue)  # Total width for cue progress bar
+        
+        for i in range(num_cue):
+            if i == current_cue_index:
+                # Current active segment
+                cue_bar_str += "█" * segment_width
+            else:
+                # Inactive segments
+                cue_bar_str += " " * segment_width
+        
+        cue_bar_str += "|"
+        
+        # Pull sample
         sample, timestamp = inlet.pull_sample(timeout=1.0)
         if sample is not None:
             data.append(sample)
             timestamps.append(timestamp)
-        now = time.time()
-        if bar and (now - last_update >= 0.05 or now - start_time >= duration):
-            elapsed = now - start_time
-            bar.n = min(duration, elapsed)
-            # Show x.xx/total on the right
-            bar.set_description(f"Remaining(s): {max(0, duration-elapsed):.2f}")
-            bar.set_postfix({"Progress": f"{elapsed:.2f}/{duration:.2f}"}, refresh=False)
-            bar.refresh()
+        
+        # Update progress bars
+        if duration_bar and (now - last_update >= 0.05 or now - start_time >= duration):
+            # Update duration progress
+            duration_bar.n = min(duration, elapsed)
+            duration_bar.set_postfix({
+                "Loop": f"{current_loop+1}/{recordEEG.loopCount}",
+                "Cue": cue_bar_str
+            }, refresh=False)
+            duration_bar.refresh()
             last_update = now
-    if bar:
-        bar.n = duration
-        bar.set_description("Remaining(s): 0.00")
-        bar.set_postfix({"Progress": f"{duration:.2f}/{duration:.2f}"}, refresh=False)
-        bar.refresh()
-        bar.close()
+    
+    # Final update
+    if duration_bar:
+        duration_bar.n = duration
+        duration_bar.set_description("Recording complete")
+        duration_bar.set_postfix({
+            "Progress": f"{duration:.2f}/{duration:.2f}",
+            "Loop": f"{recordEEG.loopCount}/{recordEEG.loopCount}"
+        }, refresh=False)
+        duration_bar.refresh()
+        duration_bar.close()
+    
     print("[INFO] Recording finished, writing to file...")
+
     df = pd.DataFrame(data, columns=["TP9", "AF7", "AF8", "TP10", "Right AUX"])
     df.insert(0, "timestamps", timestamps)
     df.to_csv(filename, index=False)
@@ -94,11 +148,9 @@ def check_blue_muse_stream():
 # Main function to record EEG data
 if __name__ == "__main__":
     import argparse
-    import re
     parser = argparse.ArgumentParser(description="Muse EEG recording script")
-    parser.add_argument("-duration", type = int, default = 10, help = "Duration of recording in seconds")
-    parser.add_argument("-label", type = str, default = None, help = "Label for the recording")
-    parser.add_argument("-progressbar", action = "store_true", help = "Show progress bar during recording")
+    parser.add_argument("-cues", type = str, default = "l,r,n", help = "an array of cues you want to generate")
+    parser.add_argument("-loop", type = int, default = 4, help = "how many times do you want to repeat the array of cues")
     args = parser.parse_args()
 
     valid_labels = [
@@ -113,40 +165,21 @@ if __name__ == "__main__":
         exit(1)
 
     # Step 1: Validate and normalize label
-    lable = args.label
-    while True:
-        if lable is None:
-            lable = input("Enter label for recording: ")
-        labels_list, _, invalid_labels = validate_labels(lable)
-        if not labels_list:
-            print("[WARN] Label cannot be empty.")
-            lable = None
-            continue
-        if invalid_labels:
-            print(f"[WARN] Invalid label(s): {', '.join(invalid_labels)}")
-            print(format_valid_labels_message())
-            lable = None
-            continue
-        # 多标签全部写进文件名，使用标准名并用_分隔
-        lable = '_'.join(labels_list)
-        break
+    cues=args.cues.split(',')
 
-    # Step 2: Get recording duration
-    duration = args.duration
-    while True:
-        if isinstance(duration, int) and duration > 0:
-            break
-        user_input = input("Enter recording duration in seconds (default 10): ")
-        if not user_input.strip():
-            duration = 10
-            break
-        if user_input.isdigit() and int(user_input) > 0:
-            duration = int(user_input)
-            break
-        print("[ERROR] Invalid duration. Please enter a positive integer.")
+    # Step 2: setup cues and loop to recordEEG
+    if args.loop<=0:
+        raise ValueError("loop cannot <= 0")
+    recordEEG.SetCues(cues, args.loop);
+    # 多标签全部写进文件名，使用标准名并用_分隔
+    labelname = '_'.join(recordEEG.cues)
+    print(f"[INFO] cues={recordEEG.cues}, duration={recordEEG.duration}")
+    duration = recordEEG.duration;
+    if duration <= 0:
+        raise ValueError("[ERROR] Invalid duration. Please enter a positive integer in config.py")
     
     # Step 3: Start recording
-    filename = precise_record(duration, lable, args.progressbar)
+    filename = precise_record(duration, labelname, True)
 
     if filename and os.path.exists(filename):
         try:

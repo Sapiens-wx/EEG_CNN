@@ -6,10 +6,11 @@ from datetime import datetime
 from scipy.signal import butter, filtfilt
 import numpy as np
 import normalization
+from config import recordEEG, labels_to_orders
 
-def parse_labels(label_str):
+def parse_labels(label_str, keep_order=False):
     # 使用models.py中的函数验证和转换labels
-    selected, abbrs_out, invalid_labels = validate_labels(label_str)
+    selected, abbrs_out, invalid_labels = validate_labels(label_str, keep_order)
     
     # 如果有无效标签，报错并提示
     if invalid_labels:
@@ -17,49 +18,73 @@ def parse_labels(label_str):
         raise ValueError(error_msg)
     return selected, abbrs_out
 
+def segment_data(arr, window_size, sliding_window):
+    data_segments=[]
+    data_labels=[]
+
+    # calculate taskLen and transitionLen in number of samples
+    taskLen=recordEEG.taskLength*recordEEG.hzPerSec;
+    transitionLen=recordEEG.transitionLength*recordEEG.hzPerSec;
+    maxStartIdx=len(arr)-transitionLen-taskLen+1;
+    if(window_size>taskLen):
+        raise ValueError(f"window size [{window_size}] is less than taskLength [{taskLen}]!")
+    
+    cueIdx=0
+    cueLen=len(recordEEG.cuesIdx)
+    i=0
+    while i<maxStartIdx:
+        #for each task
+        i+=transitionLen # skip the transition stage
+        #use the sliding window
+        for j in range(i, i+taskLen-window_size+1, sliding_window):
+            data_segments.append(arr[j:j+window_size])
+            one_hot_label=[0]*cueLen
+            one_hot_label[recordEEG.cuesIdx[cueIdx]]=1
+            data_labels.append(one_hot_label)
+        cueIdx=(cueIdx+1)%cueLen
+        i+=taskLen
+    return data_segments,data_labels
+
+    for start in range(0, len(arr) - window_size + 1, sliding_window):
+        window = arr[start:start+window_size]
+        data_segments.append(window)
+        # Create one-hot label
+        one_hot_label = [0] * len(labels)
+        one_hot_label[label_idx] = 1
+        data_labels.append(one_hot_label)
+
 # @param -doBandPass do we apply the bandpass filter
 # @param -normalization do we apply the bandpass filter
 def preprocess_files(labels, window_size, sliding_window, lowcut, highcut, doBandPass, normalizationMethod):
+    recordEEG.SetStandardCuesAndIdx([lbl for _,lbl in enumerate(labels)],[idx for idx,_ in enumerate(labels)], 0);
     # Find files for each label
-    data_segments = []
-    data_labels = []
     missing_labels = []
+    labelname='_'.join(labels);
     
-    for label_idx, lbl in enumerate(labels):
-        folder = os.path.join(os.path.dirname(__file__), 'recorded_data')
-        if not os.path.exists(folder):
-            missing_labels.append(lbl)
-            continue
-        files = [f for f in os.listdir(folder) if f.startswith(f"eeg_{lbl}") and f.endswith('.csv')]
-        if not files:
-            missing_labels.append(lbl)
-            continue
-        for file in files:
-            df = pd.read_csv(os.path.join(folder, file))
-            # Ignore timestamps
-            signals = df[["TP9", "AF7", "AF8", "TP10", "Right AUX"]].copy()
-            # Subtract Right AUX
-            for ch in ["TP9", "AF7", "AF8", "TP10"]:
-                signals[ch] = signals[ch] - signals["Right AUX"]
-            signals = signals[["TP9", "AF7", "AF8", "TP10"]]
-            if doBandPass==1:
-                # Bandpass filter 5-40Hz
-                fs = 256  # 假设采样率为256Hz，如有不同请修改
-                nyq = 0.5 * fs
-                b, a = butter(4, [lowcut/nyq, highcut/nyq], btype='band')
-                # 对每个通道滤波
-                for ch in signals.columns:
-                    signals[ch] = filtfilt(b, a, signals[ch].values)
-            arr = np.array(signals.values)
-            arr=normalization.normalize(arr, normalizationMethod)
-            # Sliding window
-            for start in range(0, len(arr) - window_size + 1, sliding_window):
-                window = arr[start:start+window_size]
-                data_segments.append(window)
-                # Create one-hot label
-                one_hot_label = [0] * len(labels)
-                one_hot_label[label_idx] = 1
-                data_labels.append(one_hot_label)
+    folder = os.path.join(os.path.dirname(__file__), 'recorded_data')
+    if os.path.exists(folder):
+        files = [f for f in os.listdir(folder) if f.startswith(f"eeg_{labelname}") and f.endswith('.csv')]
+        if files:
+            for file in files:
+                df = pd.read_csv(os.path.join(folder, file))
+                # Ignore timestamps
+                signals = df[["TP9", "AF7", "AF8", "TP10", "Right AUX"]].copy()
+                # Subtract Right AUX
+                for ch in ["TP9", "AF7", "AF8", "TP10"]:
+                    signals[ch] = signals[ch] - signals["Right AUX"]
+                signals = signals[["TP9", "AF7", "AF8", "TP10"]]
+                if doBandPass==1:
+                    # Bandpass filter 5-40Hz
+                    fs = 256  # 假设采样率为256Hz，如有不同请修改
+                    nyq = 0.5 * fs
+                    b, a = butter(4, [lowcut/nyq, highcut/nyq], btype='band')
+                    # 对每个通道滤波
+                    for ch in signals.columns:
+                        signals[ch] = filtfilt(b, a, signals[ch].values)
+                arr = np.array(signals.values)
+                arr=normalization.normalize(arr, normalizationMethod)
+                # Sliding window
+                data_segments, data_labels=segment_data(arr, window_size, sliding_window)
     
     return data_segments, data_labels, missing_labels
 
@@ -74,7 +99,7 @@ def main():
     parser.add_argument("-normalizationMethod", type=str, default='z-score', help="[none, z-score, min-max, robust] default as z-score. what normalization method do we want?")
     args = parser.parse_args()
 
-    labels, abbrs = parse_labels(args.labels)
+    labels, abbrs = parse_labels(args.labels, True)
     window_size = args.windowSize
     sliding_window = args.slidingWindow
 

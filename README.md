@@ -57,15 +57,16 @@ pip install keyboard
 First, collect EEG data for training:
 
 ```bash
-python record_eeg.py -label left -duration 60 -progressbar
-python record_eeg.py -label left-to-right -duration 60 -progressbar
-python record_eeg.py -label l2n -duration 60 -progressbar
+python record_eeg.py
+python record_eeg.py -cues 'l,r,n'
+python record_eeg.py -cues 'l,r,n' -loop 4
 ```
 
 Parameter description:
-- `-label`: Data label (supports: left/l, right/r, neutral/n, left-to-right/l2r/ltr etc.)
-- `-duration`: Collection duration (seconds)
-- `-progressbar`: Show progress bar
+- `-cues`: [deafult='l,r,n'] an array of cues you want to generate. DO NOT repeat the cues. For example, '-cues "l,r,n"'
+- `-loop`: [default=4] how many times do you want to repeat the array of cues
+- config.py: recordEEG.taskLength: number of seconds for each task
+- config.py: recordEEG.transitionLength: number of seconds for transition between each task (preprocess_eeg.py will ignore the eeg data duration this transition stage)
 
 ### 2. Data Preprocessing
 
@@ -76,7 +77,7 @@ python preprocess_eeg.py -labels "left,right,neutral" -windowSize 256 -slidingWi
 ```
 
 Parameter description:
-- `-labels`: Comma-separated label list
+- `-labels`: Comma-separated label list. must be in the same order as you entered in record_eeg.py
 - `-windowSize`: Time window size (number of samples)
 - `-slidingWindow`: Sliding window step size
 - `-asCSV`: [optional] [an integer] if > 0, then save at most [asCSV] segments independently as .csv files
