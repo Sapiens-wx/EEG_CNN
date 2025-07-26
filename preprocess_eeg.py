@@ -59,7 +59,7 @@ def segment_data(arr, window_size, sliding_window):
 
 # @param -doBandPass do we apply the bandpass filter
 # @param -normalization do we apply the bandpass filter
-def preprocess_files(labels, window_size, sliding_window, lowcut, highcut, doBandPass, featureExtractionMethod, normalizationMethod):
+def preprocess_files(labels, window_size, sliding_window, lowcut, highcut, doBandPass, featureExtractionMethod, normalizationMethod, user):
     recordEEG.SetStandardCuesAndIdx([lbl for _,lbl in enumerate(labels)],[idx for idx,_ in enumerate(labels)], 0);
     # Find files for each label
     missing_labels = []
@@ -67,7 +67,7 @@ def preprocess_files(labels, window_size, sliding_window, lowcut, highcut, doBan
     total_segments=[];
     total_labels=[];
     
-    folder = os.path.join(os.path.dirname(__file__), 'recorded_data')
+    folder = os.path.join(os.path.dirname(__file__), 'recorded_data', user)
     if os.path.exists(folder):
         files = [f for f in os.listdir(folder) if f.startswith(f"eeg_{labelname}") and f.endswith('.csv')]
         if files:
@@ -108,6 +108,7 @@ def preprocess_files(labels, window_size, sliding_window, lowcut, highcut, doBan
 
 def main():
     parser = argparse.ArgumentParser(description="EEG Preprocessing Script")
+    parser.add_argument("--user", type=str, required=True, help="User identifier for organizing recordings")
     parser.add_argument("-labels", type=str, required=True, help="Comma separated labels to use, e.g. left,right-to-left")
     parser.add_argument("-windowSize", type=int, default=256, help="Window size for segmentation")
     parser.add_argument("-slidingWindow", type=int, default=128, help="Sliding window step")
@@ -139,7 +140,7 @@ def main():
         print("[ERROR] slidingWindow must be > 0 and < windowSize.")
         return
 
-    segments, labels_data, missing_labels = preprocess_files(labels, window_size, sliding_window, lowcut, highcut, args.doBandPass, args.featureExtraction, args.normalizationMethod)
+    segments, labels_data, missing_labels = preprocess_files(labels, window_size, sliding_window, lowcut, highcut, args.doBandPass, args.featureExtraction, args.normalizationMethod, args.user)
     if missing_labels:
         print("[ERROR] Missing EEG files for labels:")
         for lbl in missing_labels:
@@ -151,7 +152,7 @@ def main():
         return
 
     # Save
-    outdir = os.path.join(os.path.dirname(__file__), "preprocessed_data")
+    outdir = os.path.join(os.path.dirname(__file__), "preprocessed_data", args.user)
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     abbr_str = '_'.join([label_map[l]["abbr"] for l in labels])

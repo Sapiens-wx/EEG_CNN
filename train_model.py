@@ -13,6 +13,7 @@ parser.add_argument("-slidingWindow", type=int, default=128, help="Sliding windo
 parser.add_argument("-labels", type=str, required=True, help="Comma separated labels for EEG data")
 parser.add_argument("-trainDataRatio", type=float, default=0.8, nargs='?', help="Ratio of training data to total data (default: 0.8). The rest will be used for testing.")
 parser.add_argument("-preprocessedFilePath", type=str, help="Path to a preprocessed .npy file. If provided, skips labels recognition logic.")
+parser.add_argument("--user", type=str, required=True, help="User identifier to load their preprocessed EEG data")
 args = parser.parse_args()
 
 if args.epochs <= 0:
@@ -32,8 +33,14 @@ if not (0 < args.trainDataRatio <= 1):
 # Check if preprocessedFilePath is provided
 if args.preprocessedFilePath:
     if not os.path.isfile(args.preprocessedFilePath):
-        print(f"Error: The file '{args.preprocessedFilePath}' does not exist.")
-        exit(1)
+        # 尝试加上 user 子目录
+        possible_path = os.path.join("preprocessed_data", args.user, args.preprocessedFilePath)
+        if os.path.isfile(possible_path):
+            args.preprocessedFilePath = possible_path
+        else:
+            print(f"Error: The file '{args.preprocessedFilePath}' does not exist, even under user directory.")
+            exit(1)
+
     selected_file = args.preprocessedFilePath
     # 验证labels
     labels_list, _, invalid_labels = validate_labels(args.labels)
@@ -63,7 +70,7 @@ else:
         exit(1)
 
     # 检查 preprocessed 目录下是否有符合 label 的 numpy 文件（文件名包含所有 label abbr）
-    preprocessed_dir = "preprocessed_data"
+    preprocessed_dir = os.path.join("preprocessed_data", args.user)
     matched_files = []
     abbrs = [abbr for abbr in labels_list]
     if not os.path.exists(preprocessed_dir):
@@ -253,7 +260,7 @@ history = model.fit(
 
 # 训练后评估与保存模型
 import datetime
-save_dir = os.path.join(os.path.dirname(__file__), 'models')
+save_dir = os.path.join(os.path.dirname(__file__), 'models', args.user)
 os.makedirs(save_dir, exist_ok=True)
 
 abbr_str = '-'.join([abbr for abbr in labels_list])

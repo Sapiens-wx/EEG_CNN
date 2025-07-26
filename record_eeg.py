@@ -7,12 +7,13 @@ from labels import validate_labels, format_valid_labels_message
 from config import recordEEG
 from tqdm import tqdm
 
-def precise_record(duration, label_name, show_progressbar):
+def precise_record(duration, label_name, show_progressbar, username):
     #placeholder for the precise_record function
-    folder = os.path.join(os.path.dirname(__file__), "recorded_data")
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-    filename = os.path.join(folder, f"eeg_{label_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+    base_dir = os.path.dirname(__file__)
+    user_dir = os.path.join(base_dir, "recorded_data", username)
+    os.makedirs(user_dir, exist_ok=True)
+    filename = os.path.join(user_dir, f"eeg_{label_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+
     # Assume EEG device is available, connect directly
     streams = pylsl.resolve_streams()
     eeg_streams = [s for s in streams if s.type() == 'EEG']
@@ -151,6 +152,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Muse EEG recording script")
     parser.add_argument("-cues", type = str, default = "l,r,n", help = "an array of cues you want to generate")
     parser.add_argument("-loop", type = int, default = 4, help = "how many times do you want to repeat the array of cues")
+    parser.add_argument("--user", type=str, required=True, help="Username to store under recorded_data/<user>/")
     args = parser.parse_args()
 
     valid_labels = [
@@ -167,6 +169,9 @@ if __name__ == "__main__":
     # Step 1: Validate and normalize label
     cues=args.cues.split(',')
 
+    #Step 1.5: get user
+    username = args.user
+
     # Step 2: setup cues and loop to recordEEG
     if args.loop<=0:
         raise ValueError("loop cannot <= 0")
@@ -179,7 +184,7 @@ if __name__ == "__main__":
         raise ValueError("[ERROR] Invalid duration. Please enter a positive integer in config.py")
     
     # Step 3: Start recording
-    filename = precise_record(duration, labelname, True)
+    filename = precise_record(duration, labelname, True, username)
 
     if filename and os.path.exists(filename):
         try:
