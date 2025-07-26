@@ -176,19 +176,29 @@ if args.model.lower() in ['hybridcnn', 'hybrid_cnn', 'cnn+spectral']:
     x_train = [x_raw_train, x_spec_train]
     x_test = [x_raw_test, x_spec_test]
 
-if isinstance(x_train, list):
-    print(f"[sklearn split] Train: {[x.shape for x in x_train]}, {y_train.shape}; Test: {[x.shape for x in x_test]}, {y_test.shape}")
-else:
-    print(f"[sklearn split] Train: {x_train.shape}, {y_train.shape}; Test: {x_test.shape}, {y_test.shape}")
-
 def check_data(dataset):
+    assert isinstance(dataset, np.ndarray), "check_data expects a numpy array"
     if np.isnan(dataset).any():
-        raise ValueError('nan exists in dataset')
+        raise ValueError('NaN exists in dataset')
     if np.isinf(dataset).any():
-        raise ValueError('infiniti exists in dataset')
+        raise ValueError('Infinity exists in dataset')
     print("Data range: min={}, max={}".format(np.min(dataset), np.max(dataset)))
-check_data(x_train)
-check_data(x_test)
+
+
+if isinstance(x_train, list):
+    for i, x_part in enumerate(x_train):
+        print(f"\n[INFO] Checking x_train[{i}]...")
+        check_data(x_part)
+else:
+    check_data(x_train)
+
+if isinstance(x_test, list):
+    for i, x_part in enumerate(x_test):
+        print(f"\n[INFO] Checking x_test[{i}]...")
+        check_data(x_part)
+else:
+    check_data(x_test)
+
 
 
 # 检查labels是否为one-hot编码
@@ -204,14 +214,31 @@ if not is_one_hot(y_train) or not is_one_hot(y_test):
     print("Error: labels must be one-hot encoded.")
     exit(1)
 
-# 根据参数选择模型
+
+if isinstance(x_train, list):  # HybridCNN
+    numSamples = x_train[0].shape[1]
+    numChannels = x_train[0].shape[2]
+else:  # single input
+    numSamples = x_train.shape[1]
+    numChannels = x_train.shape[2]
+
 model = models.LoadModel(
     model_type=args.model,
-    numSamples=x_train.shape[1],
-    numChannels=x_train.shape[2],
+    numSamples=numSamples,
+    numChannels=numChannels,
     num_classes=len(labels_list),
-    model_optimizer='adam'
+    model_optimizer='adam',
+    windowSize=args.windowSize if args.model.lower() in ['hybridcnn', 'hybrid_cnn', 'cnn+spectral'] else None
 )
+
+# 根据参数选择模型
+# model = models.LoadModel(
+#     model_type=args.model,
+#     numSamples=x_train.shape[1],
+#     numChannels=x_train.shape[2],
+#     num_classes=len(labels_list),
+#     model_optimizer='adam'
+# )
 
 import tensorflow as tf
 
@@ -243,6 +270,10 @@ print(f"Model saved to {model_save_path}")
 if hasattr(model, 'summary'):
     print("\nModel Summary:")
     model.summary()
+
+
+print(f"Sample spectral shape: {x_spec_train[0].shape}")
+print("[DEBUG] Spectral input stats: mean =", np.mean(x_spec_train), ", std =", np.std(x_spec_train))
 
 input("Press Enter to exit ...")
 

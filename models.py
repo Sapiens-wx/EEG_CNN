@@ -18,7 +18,7 @@ def validate_model_name(name):
     return get_standard_model_name(name) is not None
 
 
-def LoadModel(model_type, numSamples, numChannels, num_classes, model_optimizer='adam'):
+def LoadModel(model_type, numSamples, numChannels, num_classes, model_optimizer='adam', windowSize=None):
     import tensorflow as tf
     from tensorflow.keras import layers, models
 
@@ -38,6 +38,8 @@ def LoadModel(model_type, numSamples, numChannels, num_classes, model_optimizer=
         case 'dual_attention_transformer':
             return DualAttentionTransformer(numSamples, numChannels, num_classes, model_optimizer)
         case 'hybridcnn':
+            if windowSize is None:
+                raise ValueError("windowSize must be provided for HybridCNN")
             return HybridCNN(windowSize, num_classes, model_optimizer=model_optimizer)
         case _:
             raise ValueError(f"Unknown model type: {model_type}")
