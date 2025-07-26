@@ -1,0 +1,10 @@
+tensorflow
+numpy
+pandas
+scipy
+scikit-learn
+matplotlib
+tqdm
+keyboard
+pylsl
+muselsl

@@ -4,6 +4,19 @@ import models
 import tensorflow as tf
 from labels import validate_labels
 
+"""
+This script supports finetuning EEG classifiers using newly labeled data.
+
+Model Support:
+- Works with all architectures defined in models.py (CNN, Transformer, etc.)
+- To extend with custom models, add a function in models.py (e.g. create_my_model),
+  then register the name in the MODEL_ALIASES and update LoadModel logic.
+
+Usage:
+- Called by realtime_preprocess_and_extract.py after unsupervised labeling
+- New data is expected to be a .npy dict: {'segments': np.ndarray, 'labels': np.ndarray}
+"""
+
 
 def finetune_model_on_new_data(
     model_path,
@@ -45,6 +58,11 @@ def finetune_model_on_new_data(
 
     # Train
     model.fit(segments, labels, epochs=epochs, batch_size=32)
+
+    # Evaluate on new data
+    loss, acc = model.evaluate(segments, labels, verbose=0)
+    print(f"[INFO] Accuracy after fine-tuning on new data: {acc:.4f}")
+
 
     # Save updated model
     basename = os.path.basename(model_path).replace(".keras", "")
