@@ -6,3 +6,4 @@
 *imgui.ini
 /brainwave_plots/
 eeg_env/
+*.bat

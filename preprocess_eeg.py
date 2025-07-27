@@ -9,6 +9,13 @@ import normalization
 from config import recordEEG, labels_to_orders
 import feature_extraction
 
+def bandpass_filter(data, lowcut, highcut, fs, order=4):
+    nyq = 0.5 * fs
+    low = lowcut / nyq
+    high = highcut / nyq
+    b, a = butter(order, [low, high], btype='band')
+    return filtfilt(b, a, data, axis=0)
+
 def check_data(dataset, msg=''):
     if np.isnan(dataset).any():
         nan_flat_index = np.where(np.isnan(dataset.ravel()))[0]
@@ -69,9 +76,10 @@ def preprocess_files(labels, window_size, sliding_window, lowcut, highcut, doBan
     
     folder = os.path.join(os.path.dirname(__file__), 'recorded_data', user)
     if os.path.exists(folder):
-        files = [f for f in os.listdir(folder) if f.startswith(f"eeg_{labelname}") and f.endswith('.csv')]
+        files = [f for f in os.listdir(folder) if f.startswith(f"eeg_{labelname}") and f.endswith('.csv') and f[len(f"eeg_{labelname}_")].isdigit()]
         if files:
             for file in files:
+                print("preprocessing file "+file)
                 df = pd.read_csv(os.path.join(folder, file))
                 # Ignore timestamps
                 check_data(df.values, f"processing file {file}. the best way is to delete the file")
@@ -80,15 +88,10 @@ def preprocess_files(labels, window_size, sliding_window, lowcut, highcut, doBan
                 for ch in ["TP9", "AF7", "AF8", "TP10"]:
                     signals[ch] = signals[ch] - signals["Right AUX"]
                 signals = signals[["TP9", "AF7", "AF8", "TP10"]]
-                if doBandPass==1:
-                    # Bandpass filter 5-40Hz
-                    fs = 256  # 假设采样率为256Hz，如有不同请修改
-                    nyq = 0.5 * fs
-                    b, a = butter(4, [lowcut/nyq, highcut/nyq], btype='band')
-                    # 对每个通道滤波
-                    for ch in signals.columns:
-                        signals[ch] = filtfilt(b, a, signals[ch].values)
                 arr = np.array(signals.values)
+                #bandpass filter
+                if doBandPass==1:
+                    bandpass_filter(arr, lowcut, highcut, 256)
                 arr=normalization.normalize(arr, normalizationMethod)
                 # Sliding window
                 data_segments, data_labels=segment_data(arr, window_size, sliding_window)
@@ -96,7 +99,7 @@ def preprocess_files(labels, window_size, sliding_window, lowcut, highcut, doBan
                 if featureExtractionMethod!='none':
                     featExtractResults=[]
                     for segment in data_segments:
-                        featExtractResult, freqs=feature_extraction.feature_extract(featureExtractionMethod, segment, lowcut, highcut)
+                        featExtractResult, _=feature_extraction.feature_extract(featureExtractionMethod, segment, lowcut, highcut)
                         featExtractResults.append(featExtractResult);
                     data_segments=featExtractResults
                 for segment in data_segments:
@@ -171,12 +174,7 @@ def main():
     else: # save as csv
         # saves at most [args.asCSV] number of csv files
         for i in range(0, min(len(labels_data), args.asCSV)):
-            df = pd.DataFrame({
-                'TP9': [segments[i][j][0] for j in range(len(segments[i]))],
-                'TP7': [segments[i][j][1] for j in range(len(segments[i]))],
-                'TP8': [segments[i][j][2] for j in range(len(segments[i]))],
-                'TP10': [segments[i][j][3] for j in range(len(segments[i]))]
-            })
+            df=pd.DataFrame(segments[i]);
             outname = f"preprocessed_{'_'.join(labels)}[{labels_data[i]}]_{timestr}{i}.csv"
             outpath = os.path.join(outdir, outname)
             df.to_csv(outpath, index=False) # do not save line numbers

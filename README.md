@@ -83,7 +83,9 @@ Parameter description:
 - `-asCSV`: [optional] [an integer] if > 0, then save at most [asCSV] segments independently as .csv files
 - `-doBandPass`: [optional] [0 or 1] if ==1, then apply bandpass filter
 - `-normalizationMethod`: [optional] [none, z-score, min-max, robust]. default as z-score. The normalization method used to normalize the signal.
-- `-featureExtraction`: [optional] [none, fft, sfft, wavelet] default as none. what feature extraction method do we want?
+- `-featureExtraction`: [optional] [none, fft, sfft, wavelet, wave] default as none. what feature extraction method do we want?
+  - use "fft" for fast fourier transform (note that if you use fft as feature extraction method, you'll have to add "-model cnn_featureExtraction" while using train_model.py, instead of "-model cnn")
+  - use "wave" to extract beta and theta waves (note that if you use wave as feature extraction method, you'll have to add "-model cnn_featureExtraction" while using train_model.py, instead of "-model cnn")
 
 ### 3. Model Training
 
@@ -101,7 +103,8 @@ python train_model.py -model CNN -label "left,right,neutral" -epochs 100
 ```
 
 Parameter description:
-- `-model`: Model type (CNN, Transformer, CNN+LSTM, DaViT)
+- `-model`: Model type (CNN, Transformer, CNN+LSTM, DaViT, CNN_featureExtraction)
+  - CNN_featureExtraction: the different between CNN_featureExtraction and CNN is their kernel size in conv1D layers. CNN_featureExtraction has smaller kernel size to fit the small input size (preprocessed with feature extraction method of "fft" or "wave")
 - `-labels`: Label list
 - `-epochs`: Number of training epochs
 - `-windowSize`: Time window size

@@ -29,7 +29,7 @@ def LoadModel(model_type, numSamples, numChannels, num_classes, model_optimizer=
     match standard_name:
         case 'cnn':
             return CNN(numSamples, numChannels, num_classes, model_optimizer)
-        case 'cnn_featExtract':
+        case 'cnn_featureExtraction':
             return CNN_featExtract(numSamples, numChannels, num_classes, model_optimizer)
         case 'transformer':
             return Transformer(numSamples, numChannels, num_classes, model_optimizer)
@@ -38,9 +38,9 @@ def LoadModel(model_type, numSamples, numChannels, num_classes, model_optimizer=
         case 'dual_attention_transformer':
             return DualAttentionTransformer(numSamples, numChannels, num_classes, model_optimizer)
         case 'hybridcnn':
-            if windowSize is None:
+            if numSamples is None:
                 raise ValueError("windowSize must be provided for HybridCNN")
-            return HybridCNN(windowSize, num_classes, model_optimizer=model_optimizer)
+            return HybridCNN(numSamples, num_classes, model_optimizer=model_optimizer)
         case _:
             raise ValueError(f"Unknown model type: {model_type}")
 

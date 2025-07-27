@@ -14,6 +14,7 @@ parser.add_argument("-labels", type=str, required=True, help="Comma separated la
 parser.add_argument("-trainDataRatio", type=float, default=0.8, nargs='?', help="Ratio of training data to total data (default: 0.8). The rest will be used for testing.")
 parser.add_argument("-preprocessedFilePath", type=str, help="Path to a preprocessed .npy file. If provided, skips labels recognition logic.")
 parser.add_argument("--user", type=str, required=True, help="User identifier to load their preprocessed EEG data")
+parser.add_argument("--verbose", action="store_true", help="Enable verbose mode")
 args = parser.parse_args()
 
 if args.epochs <= 0:
@@ -182,6 +183,18 @@ if args.model.lower() in ['hybridcnn', 'hybrid_cnn', 'cnn+spectral']:
 
     x_train = [x_raw_train, x_spec_train]
     x_test = [x_raw_test, x_spec_test]
+else:
+    x_spec_train = None
+    x_spec_test = None
+
+# check if the data contains nan or infinity
+def check_data(dataset):
+    assert isinstance(dataset, np.ndarray), "check_data expects a numpy array"
+    if np.isnan(dataset).any():
+        raise ValueError('NaN exists in dataset')
+    if np.isinf(dataset).any():
+        raise ValueError('Infinity exists in dataset')
+    print("Data range: min={}, max={}".format(np.min(dataset), np.max(dataset)))
 
 def check_data(dataset):
     assert isinstance(dataset, np.ndarray), "check_data expects a numpy array"
@@ -205,8 +218,6 @@ if isinstance(x_test, list):
         check_data(x_part)
 else:
     check_data(x_test)
-
-
 
 # 检查labels是否为one-hot编码
 def is_one_hot(arr):
@@ -274,13 +285,12 @@ print(f"Test loss: {loss:.4f}, Test accuracy: {accuracy:.4f}")
 model.save(model_save_path)
 print(f"Model saved to {model_save_path}")
 
-if hasattr(model, 'summary'):
+if hasattr(model, 'summary') and args.verbose:
     print("\nModel Summary:")
     model.summary()
 
-
-print(f"Sample spectral shape: {x_spec_train[0].shape}")
-print("[DEBUG] Spectral input stats: mean =", np.mean(x_spec_train), ", std =", np.std(x_spec_train))
+if x_spec_train:
+    print(f"Sample spectral shape: {x_spec_train[0].shape}")
+    print("[DEBUG] Spectral input stats: mean =", np.mean(x_spec_train), ", std =", np.std(x_spec_train))
 
 input("Press Enter to exit ...")
-
