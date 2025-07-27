@@ -57,14 +57,15 @@ pip install keyboard
 First, collect EEG data for training:
 
 ```bash
-python record_eeg.py
-python record_eeg.py -cues 'l,r,n'
-python record_eeg.py -cues 'l,r,n' -loop 4
+python record_eeg.py --user name
+python record_eeg.py -cues 'l,r,n' --user name
+python record_eeg.py -cues 'l,r,n' -loop 4 --user name
 ```
 
 Parameter description:
 - `-cues`: [deafult='l,r,n'] an array of cues you want to generate. DO NOT repeat the cues. For example, '-cues "l,r,n"'
 - `-loop`: [default=4] how many times do you want to repeat the array of cues
+- `--user`: will create a subfolder under recorded-data folder named "name", designed for users to seperate each individual test round for different people or for different set of training settings and able to name it.
 - config.py: recordEEG.taskLength: number of seconds for each task
 - config.py: recordEEG.transitionLength: number of seconds for transition between each task (preprocess_eeg.py will ignore the eeg data duration this transition stage)
 
@@ -73,10 +74,11 @@ Parameter description:
 Preprocess the collected raw data:
 
 ```bash
-python preprocess_eeg.py -labels "left,right,neutral" -windowSize 256 -slidingWindow 128
+python preprocess_eeg.py --user name -labels "left,right,neutral" -windowSize 256 -slidingWindow 128
 ```
 
 Parameter description:
+- `--user`: the subfolder of recorded_data you want to preprocess of, and then store it under the subfolder created in preprocessed_data named "name"
 - `-labels`: Comma-separated label list. must be in the same order as you entered in record_eeg.py
 - `-windowSize`: Time window size (number of samples)
 - `-slidingWindow`: Sliding window step size
@@ -92,17 +94,18 @@ Parameter description:
 Train the classification model:
 
 ```bash
-python train_model.py -model CNN -labels "left,right,neutral" -epochs 100 -windowSize 256 -slidingWindow 128 0.8
+python train_model.py --user name -model CNN -labels "left,right,neutral" -epochs 100 -windowSize 256 -slidingWindow 128 0.8
 ```
 
 Alternatively, if you have a preprocessed file, you can skip the label recognition step:
 
 ```bash
-python train_model.py -model CNN -preprocessedFilePath "path/to/preprocessed_file.npy" -epochs 100
-python train_model.py -model CNN -label "left,right,neutral" -epochs 100
+python train_model.py --user name -model CNN -preprocessedFilePath "path/to/preprocessed_file.npy" -epochs 100
+python train_model.py --user name -model CNN -label "left,right,neutral" -epochs 100
 ```
 
 Parameter description:
+- `--user`: declare which user or which data set you are using and create a subfolder under models named "name" to store models that were trained for specific users
 - `-model`: Model type (CNN, Transformer, CNN+LSTM, DaViT, CNN_featureExtraction)
   - CNN_featureExtraction: the different between CNN_featureExtraction and CNN is their kernel size in conv1D layers. CNN_featureExtraction has smaller kernel size to fit the small input size (preprocessed with feature extraction method of "fft" or "wave")
 - `-labels`: Label list
