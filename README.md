@@ -1,9 +1,10 @@
 # Table of Contents
 1. [EEG Classification System Usage](#eeg-classification-system---versatile-version)
-2. [EGQ](#eeg-game-questionnaire-egq)
-3. [GEQ](#game-experience-questionnaire-geq)
-4. [SUS](#system-usability-scale-sus)
-5. [Instructions](#Instructions)
+2. [EEG Adaptive Update System](#eeg-adaptive-update-system-unsupervised-learning)
+3. [EGQ](#eeg-game-questionnaire-egq)
+4. [GEQ](#game-experience-questionnaire-geq)
+5. [SUS](#system-usability-scale-sus)
+6. [Instructions](#Instructions)
 
 # EEG Classification System - Versatile Version
 
@@ -259,6 +260,79 @@ The system is designed with modular architecture for easy extension:
 **Note**: This system is intended only for research and development purposes. It must never be used for clinical diagnosis, medical decision-making, or any other unapproved medical applications. Use of this system for any medical or healthcare purposes without proper regulatory review and approval is strictly prohibited.
 
 **Ethics Notice**: Any research based on this system must ensure the protection of participant privacy and address other ethical considerations.
+
+# EEG Adaptive Update System (Unsupervised Learning)
+
+This system enables automatic EEG model adaptation after each game round without manual labeling. It extends the core EEG classification pipeline with unsupervised clustering and label alignment.
+
+## Overview
+
+After each game round, the system:
+
+1. **Loads the latest EEG CSV** recorded.
+2. **Preprocesses** the data into EEG window segments.
+3. **Clusters** EEG segments using PCA + KMeans.
+4. **Assigns semantic labels** (left/right/neutral) to clusters based on similarity with previously labeled data.
+5. **Saves** the new labeled segments to `preprocessed_data/`.
+6. **Fine-tunes** the latest model using these newly labeled segments.
+
+---
+
+## Entry Point
+
+Use `realtime_preprocess_and_extract.py`:
+
+```bash
+python realtime_preprocess_and_extract.py -model CNN -epochs 5
+```
+
+---
+
+## CLI Arguments (soon to support)
+
+* `-model`: Model type (CNN, Transformer, etc.)
+* `-epochs`: Fine-tuning epochs
+
+---
+
+## File Structure
+
+| File                                 | Purpose                                      |
+| ------------------------------------ | -------------------------------------------- |
+| `realtime_preprocess_and_extract.py` | Main pipeline controller                     |
+| `clustering.py`                      | PCA + KMeans clustering logic                |
+| `cluster_labeling.py`                | Similarity-based label assignment and saving |
+| `model_finetune.py`                  | Model fine-tuning using new labeled data     |
+
+---
+
+## Supported Models
+
+Models are defined in `models.py`. You can add your own model and pass its name using `-model`.
+
+---
+
+## Output
+
+* Labeled EEG segments are saved in `.npy` format to `preprocessed_data/`
+* Fine-tuned models are saved to `models/`, with filenames containing timestamp and label info
+
+---
+
+## Example Workflow
+
+1. Record EEG data using `record_eeg.py`
+2. Game ends → call `run_full_adaptive_update()`
+3. System runs: preprocess → cluster → label → save → finetune
+4. Fine-tuned model gets saved
+
+---
+
+## Note
+
+* You do **not** need to manually label EEG after each round
+* All logic is encapsulated in callable Python modules
+* Fine-tuning will grow model robustness across rounds
 
 # EEG Game Questionnaire (EGQ)
 This is a five-question questionnaire designed by us to target specifically at evaluating EEG-controlled games.
